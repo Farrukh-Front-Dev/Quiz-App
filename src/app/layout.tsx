@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ClientProvider from "@/components/ClientProvider"; // Yangi ClientProvider componentini import qilamiz  
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,17 +22,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* 🔹 Client component orqali Redux Provider */}
+        <ClientProvider>{children}</ClientProvider>
       </body>
     </html>
   );
