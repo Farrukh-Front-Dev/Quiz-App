@@ -24,21 +24,38 @@ const authSlice = createSlice({
     setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
       state.user = action.payload.user;
       state.token = action.payload.token;
-      localStorage.setItem("token", action.payload.token);
-      localStorage.setItem("user", JSON.stringify(action.payload.user));
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", action.payload.token);
+        localStorage.setItem("user", JSON.stringify(action.payload.user));
+      }
     },
     logout: (state) => {
       state.user = null;
       state.token = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
     },
     loadFromStorage: (state) => {
+      if (typeof window === "undefined") return;
+
       const token = localStorage.getItem("token");
-      const user = localStorage.getItem("user");
-      if (token && user) {
-        state.token = token;
-        state.user = JSON.parse(user);
+      const userStr = localStorage.getItem("user");
+
+      if (token && userStr && userStr !== "undefined") {
+        try {
+          const user = JSON.parse(userStr);
+          state.token = token;
+          state.user = user;
+        } catch (err) {
+          console.error("Failed to parse user from localStorage:", err);
+          state.token = null;
+          state.user = null;
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
       }
     },
   },
