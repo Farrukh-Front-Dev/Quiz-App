@@ -75,7 +75,7 @@ export default function UserLogin() {
         <p className="text-sm text-center mt-2">
           Yangi foydalanuvchi?{" "}
           <span
-            onClick={() => router.push("/user/register")}
+            onClick={() => router.push("/login/user/register")}
             className="text-blue-600 hover:underline cursor-pointer"
           >
             Ro'yxatdan o'tish
