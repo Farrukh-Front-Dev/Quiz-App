@@ -1,20 +1,25 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-interface User {
+export type Role = "user" | "admin" | "super-admin";
+
+export interface User {
   id: string;
-  name: string;
-  surname: string;
-  phone: string;
+  name?: string;
+  surname?: string;
+  phone?: string;
+  role: Role;
 }
 
 interface AuthState {
   user: User | null;
   token: string | null;
+  loading: boolean; // 👈 Yangi field
 }
 
 const initialState: AuthState = {
   user: null,
   token: null,
+  loading: true, // 👈 Avval true, sahifa ochilganda storage’dan yuklaymiz
 };
 
 const authSlice = createSlice({
@@ -24,6 +29,7 @@ const authSlice = createSlice({
     setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
       state.user = action.payload.user;
       state.token = action.payload.token;
+      state.loading = false;
 
       if (typeof window !== "undefined") {
         localStorage.setItem("token", action.payload.token);
@@ -33,6 +39,7 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.loading = false;
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -44,19 +51,20 @@ const authSlice = createSlice({
       const token = localStorage.getItem("token");
       const userStr = localStorage.getItem("user");
 
-      if (token && userStr && userStr !== "undefined") {
+      if (token && userStr) {
         try {
-          const user = JSON.parse(userStr);
+          const user = JSON.parse(userStr) as User;
           state.token = token;
           state.user = user;
-        } catch (err) {
-          console.error("Failed to parse user from localStorage:", err);
+        } catch {
           state.token = null;
           state.user = null;
           localStorage.removeItem("token");
           localStorage.removeItem("user");
         }
       }
+
+      state.loading = false; // 👈 Muhim: yuklash tugadi
     },
   },
 });

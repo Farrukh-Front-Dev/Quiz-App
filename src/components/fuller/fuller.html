@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Random User Seeder</title>
+</head>
+<body>
+  <h1>User Generator</h1>
+  <button id="generate">Generate 20 Users</button>
+  <div id="log"></div>
+
+  <script>
+    const apiUrl = "https://excellent-grade-test.onrender.com/users";
+
+    const names = ["Farrukh", "Aziz", "Umid", "Sardor", "Dilshod", "Javlon", "Otabek", "Madina", "Malika", "Sevinch"];
+    const surnames = ["Jumayev", "Karimov", "Saidov", "Tursunov", "Mamatqulov", "Xolmatov", "Ibragimov", "Abdullayeva"];
+    const izohlar = [
+      "Matematika fanidan yaxshi o‘qiydi",
+      "Informatika bo‘yicha ilg‘or",
+      "Ingliz tilidan zo‘r natija",
+      "Tarixni yaxshi ko‘radi",
+      "Kimyoga qiziqadi",
+      "Biologiyadan a'lo baholarga o‘qiydi"
+    ];
+
+    function randomPhone() {
+      const randomPart = Math.floor(1000000 + Math.random() * 9000000);
+      return `+998${Math.floor(Math.random() * 90 + 10)}${randomPart}`;
+    }
+
+    async function createUser(user) {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(user)
+      });
+      return res.json();
+    }
+
+    async function generateUsers() {
+      const logDiv = document.getElementById("log");
+      logDiv.innerHTML = "Yaratilmoqda...<br/>";
+
+      for (let i = 0; i < 20; i++) {
+        const user = {
+          name: names[Math.floor(Math.random() * names.length)],
+          surname: surnames[Math.floor(Math.random() * surnames.length)],
+          phone: randomPhone(),
+          izoh: izohlar[Math.floor(Math.random() * izohlar.length)],
+        };
+
+        try {
+          const data = await createUser(user);
+          logDiv.innerHTML += `✅ ${user.name} ${user.surname} qo‘shildi<br/>`;
+        } catch (e) {
+          logDiv.innerHTML += `❌ Xatolik: ${e.message}<br/>`;
+        }
+      }
+      logDiv.innerHTML += "<b>Tayyor!</b>";
+    }
+
+    document.getElementById("generate").addEventListener("click", generateUsers);
+  </script>
+</body>
+</html>

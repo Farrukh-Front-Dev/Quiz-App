@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Link from "next/link";
 import {
   loadSubjects,
   addSubject,
@@ -11,134 +10,192 @@ import {
   Subject,
 } from "@/store/slices/subjectsSlice";
 import { RootState, AppDispatch } from "@/store";
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  message,
+  Tag,
+  Space,
+  Typography,
+  Popconfirm,
+} from "antd";
+import Link from "next/link";
+
+const { Title } = Typography;
+const { Search } = Input;
 
 export default function SubjectsDashboard() {
   const dispatch = useDispatch<AppDispatch>();
-  const { items: subjects, loading, error } = useSelector((state: RootState) => state.subjects);
-  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const { items: subjects, loading, error } = useSelector(
+    (state: RootState) => state.subjects
+  );
 
-  const [newTitle, setNewTitle] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [form] = Form.useForm();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(""); // 🔍 search state
 
   useEffect(() => {
     dispatch(loadSubjects());
   }, [dispatch]);
 
-  const handleAdd = async () => {
-    if (!newTitle.trim() || !currentUser) return;
-    try {
-      setAdding(true);
-      await dispatch(addSubject({ title: newTitle, userId: currentUser.id })).unwrap();
-
-      setNewTitle("");
-    } catch (err: any) {
-      alert(err.message || "Fan qo‘shishda xatolik yuz berdi");
-    } finally {
-      setAdding(false);
-    }
+  const openAddModal = () => {
+    setEditingSubject(null);
+    form.resetFields();
+    setModalOpen(true);
   };
 
-  const handleEdit = async (id: string) => {
-    const newName = prompt("Yangi fan nomini kiriting:");
-    if (!newName) return;
+  const openEditModal = (subject: Subject) => {
+    setEditingSubject(subject);
+    form.setFieldsValue({ title: subject.title });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
     try {
-      setEditingId(id);
-      await dispatch(editSubject({ id, title: newName })).unwrap();
+      const values = await form.validateFields();
+      setSaving(true);
+      if (editingSubject) {
+        await dispatch(editSubject({ id: editingSubject.id, title: values.title })).unwrap();
+        message.success("Fan o‘zgartirildi!");
+      } else {
+        await dispatch(addSubject({ title: values.title })).unwrap();
+        message.success("Fan qo‘shildi!");
+      }
+      setModalOpen(false);
     } catch (err: any) {
-      alert(err.message || "Fan nomini o‘zgartirishda xatolik");
+      if (err?.message) message.error(err.message);
     } finally {
-      setEditingId(null);
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Fanni o‘chirishni xohlaysizmi?")) return;
     try {
-      setDeletingId(id);
       await dispatch(removeSubject(id)).unwrap();
+      message.success("Fan o‘chirildi!");
     } catch (err: any) {
-      alert(err.message || "Fanni o‘chirishda xatolik");
-    } finally {
-      setDeletingId(null);
+      message.error(err.message || "Xatolik!");
     }
   };
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Fanlar va Darajalar</h1>
+  // 🔍 search filtering (case-insensitive)
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter((s) =>
+      s.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [subjects, searchQuery]);
 
-      {error && <p className="text-red-500 mb-2">{error}</p>}
-
-      {currentUser && (
-        <div className="mb-4 flex gap-2">
-          <input
-            type="text"
-            placeholder="Yangi fan nomi"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="border p-2 rounded flex-1"
-          />
-          <button
-            onClick={handleAdd}
-            className="bg-blue-600 text-white px-4 rounded"
-            disabled={adding}
+  const columns = [
+    {
+      title: "Fan nomi",
+      dataIndex: "title",
+      key: "title",
+      render: (text: string, record: Subject) => (
+        <Link href={`/admin/subjects/${record.id}`}>
+          <span className="font-medium hover:underline">{text}</span>
+        </Link>
+      ),
+    },
+    {
+      title: "Darajalar",
+      key: "grades",
+      render: (_: any, record: Subject) =>
+        record.grades.length > 0 ? (
+          <Space direction="vertical">
+            {record.grades.map((g) => (
+              <Link
+                key={g.id}
+                href={`/admin/subjects/${record.id}/levels/${g.id}/tests`}
+              >
+                <Tag color="blue">{g.title}</Tag>
+              </Link>
+            ))}
+          </Space>
+        ) : (
+          <Tag color="default">Mavjud emas</Tag>
+        ),
+    },
+    {
+      title: "Status",
+      dataIndex: "is_active",
+      key: "status",
+      render: (is_active: boolean) =>
+        is_active ? <Tag color="green">Active</Tag> : <Tag color="red">Inactive</Tag>,
+    },
+    {
+      title: "Amallar",
+      key: "actions",
+      render: (_: any, record: Subject) => (
+        <Space>
+          <Button size="small" onClick={() => openEditModal(record)}>
+            Tahrirlash
+          </Button>
+          <Popconfirm
+            title="Fanni o‘chirishni tasdiqlang"
+            okText="Ha"
+            cancelText="Yo‘q"
+            onConfirm={() => handleDelete(record.id)}
           >
-            {adding ? "Loading..." : "Qo‘shish"}
-          </button>
+            <Button size="small" danger>
+              O‘chirish
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div className="p-6 bg-white rounded-xl shadow-sm">
+      <div className="flex justify-between items-center mb-4">
+        <Title level={3}>📚 Fanlar boshqaruvi</Title>
+        <div className="flex gap-2">
+          <Search
+            placeholder="Fanlarni izlash..."
+            onChange={(e) => setSearchQuery(e.target.value)}
+            allowClear
+            style={{ width: 250 }}
+          />
+          <Button type="primary" onClick={openAddModal}>
+            + Yangi fan
+          </Button>
         </div>
-      )}
-
-      <div className="space-y-4">
-        {subjects.map((subject: Subject) => {
-          const isOwner = subject.created_by === currentUser?.id;
-          return (
-            <div key={subject.id} className="p-4 border rounded flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-semibold">{subject.title}</h2>
-                {subject.grades.length > 0 ? (
-                  <ul className="ml-4 mt-2 list-disc">
-                    {subject.grades.map((grade) => (
-                      <li key={grade.id}>
-                        <Link
-                          href={`/admin/subjects/${subject.id}/levels/${grade.id}/tests`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          {grade.title} → Testlar
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="ml-4 text-gray-500">Darajalar mavjud emas</p>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                {isOwner && (
-                  <>
-                    <button
-                      onClick={() => handleEdit(subject.id)}
-                      className="bg-yellow-400 px-3 rounded"
-                      disabled={editingId === subject.id}
-                    >
-                      {editingId === subject.id ? "Loading..." : "Edit"}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(subject.id)}
-                      className="bg-red-500 text-white px-3 rounded"
-                      disabled={deletingId === subject.id}
-                    >
-                      {deletingId === subject.id ? "Loading..." : "Delete"}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
       </div>
+
+      {error && <p className="text-red-500">{error}</p>}
+
+      <Table
+        rowKey="id"
+        dataSource={filteredSubjects} // 🔍 filtered
+        columns={columns}
+        loading={loading}
+        pagination={{ pageSize: 5 }}
+      />
+
+      {/* Modal qo'shish / tahrirlash */}
+      <Modal
+        title={editingSubject ? "Fanni tahrirlash" : "Yangi fan qo‘shish"}
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSave}
+        confirmLoading={saving}
+        okText={editingSubject ? "Saqlash" : "Qo‘shish"}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="title"
+            label="Fan nomi"
+            rules={[{ required: true, message: "Fan nomi majburiy!" }]}
+          >
+            <Input placeholder="Masalan: Matematika" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

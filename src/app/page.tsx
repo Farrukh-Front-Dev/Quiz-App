@@ -1,11 +1,7 @@
-"use client"; // 🔹 Client componentga aylantiramiz
+"use client";
 
-import UserRegister from "./user/register/page";
+import UserLogin from "./login/user/page";
 
 export default function Home() {
-  return (
-    <div>
-      <UserRegister />
-    </div>
-  );
+  return <UserLogin />;
 }

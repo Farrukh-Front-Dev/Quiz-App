@@ -83,7 +83,7 @@ export default function UserRegister() {
 
       {/* 🔹 Login sahifasiga o'tish tugmasi */}
       <button
-        onClick={() => router.push("/user/login")}
+        onClick={() => router.push("/login/user")}
         className="text-blue-600 underline"
       >
         Allaqachon hisobingiz bormi? Login
