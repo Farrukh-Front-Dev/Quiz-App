@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import authReducer from "./slices/authSlice";
+import authReducer, { loadFromStorage } from "./slices/authSlice";
 import subjectsReducer from "./slices/subjectsSlice";
 import gradesReducer from "./slices/gradesSlice";
 import usersReducer from "./slices/usersSlice";
@@ -14,6 +14,9 @@ export const store = configureStore({
     questions: questionsReducer,
   },
 });
+
+// 🔑 Sahifa yuklanganda localStorage'dan token va userni yuklaymiz
+store.dispatch(loadFromStorage());
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

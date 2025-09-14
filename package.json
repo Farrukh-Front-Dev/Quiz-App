@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@reduxjs/toolkit": "^2.9.0",
     "antd": "^5.11.3-alpha.0",
     "axios": "^1.11.0",
@@ -18,8 +17,8 @@
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
     "ogl": "^1.0.11",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-redux": "^9.2.0"
   },
   "devDependencies": {

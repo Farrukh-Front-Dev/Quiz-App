@@ -85,11 +85,16 @@ export default function SubjectsDashboard() {
   };
 
   // 🔍 search filtering (case-insensitive)
+  // 🔍 search filtering (case-insensitive)
   const filteredSubjects = useMemo(() => {
-    return subjects.filter((s) =>
-      s.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // subjects bo'sh bo'lsa ham [], undefined bo'lsa ham ishlay oladi
+    return (subjects ?? []).filter((s) => {
+      // s yoki s.title undefined bo'lsa, false qaytaradi
+      if (!s?.title) return false;
+      return s.title.toLowerCase().includes((searchQuery ?? "").toLowerCase());
+    });
   }, [subjects, searchQuery]);
+
 
   const columns = [
     {

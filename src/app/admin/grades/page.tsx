@@ -16,14 +16,19 @@ import {
   Button,
   Modal,
   Form,
-  Input,
   Select,
   Space,
   Popconfirm,
   Tag,
-  Spin,
+  Avatar,
   message,
 } from "antd";
+import InfinityLoader from "@/components/admin/InfinityLoader";
+import { GRADE_OPTIONS } from "@/constants/grades";
+
+
+// Ruxsat berilgan grade’lar
+
 
 export default function GradesPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -63,9 +68,7 @@ export default function GradesPage() {
     try {
       const values = await form.validateFields();
       if (editingGrade) {
-        await dispatch(
-          updateGrade({ id: editingGrade.id, ...values })
-        ).unwrap();
+        await dispatch(updateGrade({ id: editingGrade.id, ...values })).unwrap();
         message.success("Daraja o‘zgartirildi!");
       } else {
         await dispatch(createGrade(values)).unwrap();
@@ -86,6 +89,56 @@ export default function GradesPage() {
     }
   };
 
+  const columns = [
+    {
+      title: "№",
+      key: "index",
+      render: (_: any, __: any, index: number) => <span>{index + 1}</span>,
+      width: 50,
+    },
+    {
+      title: "Rasm",
+      key: "avatar",
+      render: () => <Avatar src="/grades-icon.jpg" size={40} />,
+      width: 70,
+    },
+    {
+      title: "Daraja",
+      dataIndex: "title",
+      key: "title",
+      render: (title: string) => <Tag color="blue">{title.toUpperCase()}</Tag>,
+    },
+    {
+      title: "Fan",
+      key: "subject",
+      render: (_: any, record: Grade) => (
+        <Tag color="green">{record.subject?.title}</Tag>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "is_active",
+      key: "status",
+      render: (active: boolean) =>
+        active ? <Tag color="success">Active</Tag> : <Tag color="error">Inactive</Tag>,
+    },
+    {
+      title: "Amallar",
+      key: "actions",
+      render: (_: any, record: Grade) => (
+        <Space>
+          <Button onClick={() => openEditModal(record)}>Tahrirlash</Button>
+          <Popconfirm
+            title="O‘chirishni tasdiqlaysizmi?"
+            onConfirm={() => handleDelete(record.id)}
+          >
+            <Button danger>O‘chirish</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm">
       <div className="flex justify-between items-center mb-4">
@@ -95,7 +148,6 @@ export default function GradesPage() {
         </Button>
       </div>
 
-      {/* Filter */}
       <div className="mb-4">
         <Select
           allowClear
@@ -111,45 +163,16 @@ export default function GradesPage() {
         </Select>
       </div>
 
-      {loading && <Spin tip="Yuklanmoqda..." />}
+      {loading && <InfinityLoader />}
       {error && <p className="text-red-500">{error}</p>}
 
       <Table
-        dataSource={filteredGrades}
         rowKey="id"
-        pagination={{ pageSize: 6 }}
-        columns={[
-          { title: "Daraja nomi", dataIndex: "title" },
-          {
-            title: "Fan",
-            render: (_, record: Grade) => (
-              <Tag color="blue">{record.subject?.title}</Tag>
-            ),
-          },
-          {
-            title: "Status",
-            dataIndex: "is_active",
-            render: (active: boolean) =>
-              active ? <Tag color="green">Active</Tag> : <Tag color="red">Inactive</Tag>,
-          },
-          {
-            title: "Amallar",
-            render: (_, record: Grade) => (
-              <Space>
-                <Button onClick={() => openEditModal(record)}>Tahrirlash</Button>
-                <Popconfirm
-                  title="O‘chirishni tasdiqlaysizmi?"
-                  onConfirm={() => handleDelete(record.id)}
-                >
-                  <Button danger>O‘chirish</Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
-        ]}
+        dataSource={filteredGrades}
+        columns={columns}
+        pagination={{ pageSize: 5 }}
       />
 
-      {/* Modal */}
       <Modal
         open={isModalOpen}
         title={editingGrade ? "Darajani tahrirlash" : "Yangi daraja qo‘shish"}
@@ -161,10 +184,17 @@ export default function GradesPage() {
           <Form.Item
             name="title"
             label="Daraja nomi"
-            rules={[{ required: true, message: "Daraja nomini kiriting!" }]}
+            rules={[{ required: true, message: "Darajani tanlang!" }]}
           >
-            <Input placeholder="Masalan: A1" />
+            <Select placeholder="Darajani tanlang">
+              {GRADE_OPTIONS.map((g) => (
+                <Select.Option key={g} value={g}>
+                  {g.toUpperCase()}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
+
           <Form.Item
             name="subject_id"
             label="Fan"
