@@ -24,7 +24,6 @@ const initialState: SubjectsState = {
   error: null,
 };
 
-// --- THUNKS ---
 export const loadSubjects = createAsyncThunk<Subject[]>(
   "subjects/load",
   async () => {
@@ -37,7 +36,7 @@ export const addSubject = createAsyncThunk<Subject, { title: string }>(
   "subjects/add",
   async ({ title }) => {
     const res = await api.post("/subjects", { title });
-    return res.data; // yangi subject qaytadi
+    return res.data;
   }
 );
 

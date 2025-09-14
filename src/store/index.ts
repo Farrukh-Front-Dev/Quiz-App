@@ -3,6 +3,7 @@ import authReducer from "./slices/authSlice";
 import subjectsReducer from "./slices/subjectsSlice";
 import gradesReducer from "./slices/gradesSlice";
 import usersReducer from "./slices/usersSlice";
+import questionsReducer from "./slices/questionsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     subjects: subjectsReducer,
     grades: gradesReducer,
     users: usersReducer,
+    questions: questionsReducer,
   },
 });
 

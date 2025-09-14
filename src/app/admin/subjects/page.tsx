@@ -21,6 +21,7 @@ import {
   Space,
   Typography,
   Popconfirm,
+  Avatar,
 } from "antd";
 import Link from "next/link";
 
@@ -92,6 +93,18 @@ export default function SubjectsDashboard() {
 
   const columns = [
     {
+      title: "Rasm",
+      dataIndex: "avatar",
+      width: 70,
+      render: () => (
+        <Avatar
+          src="/subjects-icon.png"
+          size={40}
+          style={{ backgroundColor: "#f5f5f5" }}
+        />
+      ),
+    },
+    {
       title: "Fan nomi",
       dataIndex: "title",
       key: "title",
@@ -106,20 +119,23 @@ export default function SubjectsDashboard() {
       key: "grades",
       render: (_: any, record: Subject) =>
         record.grades.length > 0 ? (
-          <Space direction="vertical">
-            {record.grades.map((g) => (
-              <Link
-                key={g.id}
-                href={`/admin/subjects/${record.id}/levels/${g.id}/tests`}
-              >
-                <Tag color="blue">{g.title}</Tag>
-              </Link>
-            ))}
-          </Space>
+          <div style={{ maxWidth: 200, overflowX: "auto" }}>
+            <Space size={[4, 4]} wrap={false}>
+              {record.grades.map((g) => (
+                <Link
+                  key={g.id}
+                  href={`/admin/subjects/${record.id}/levels/${g.id}/tests`}
+                >
+                  <Tag color="blue">{g.title}</Tag>
+                </Link>
+              ))}
+            </Space>
+          </div>
         ) : (
           <Tag color="default">Mavjud emas</Tag>
         ),
     },
+
     {
       title: "Status",
       dataIndex: "is_active",
@@ -132,7 +148,7 @@ export default function SubjectsDashboard() {
       key: "actions",
       render: (_: any, record: Subject) => (
         <Space>
-          <Button size="small" onClick={() => openEditModal(record)}>
+          <Button size="small" type="primary" onClick={() => openEditModal(record)}>
             Tahrirlash
           </Button>
           <Popconfirm
@@ -141,7 +157,7 @@ export default function SubjectsDashboard() {
             cancelText="Yo‘q"
             onConfirm={() => handleDelete(record.id)}
           >
-            <Button size="small" danger>
+            <Button size="small" color="red" danger>
               O‘chirish
             </Button>
           </Popconfirm>
