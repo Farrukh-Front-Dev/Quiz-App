@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   loadSubjects,
@@ -22,7 +22,9 @@ import {
   Typography,
   Popconfirm,
   Avatar,
+  Alert,
 } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import Link from "next/link";
 
 const { Title } = Typography;
@@ -30,7 +32,7 @@ const { Search } = Input;
 
 export default function SubjectsDashboard() {
   const dispatch = useDispatch<AppDispatch>();
-  const { items: subjects, loading, error } = useSelector(
+  const { items: subjects = [], loading, error } = useSelector(
     (state: RootState) => state.subjects
   );
 
@@ -38,77 +40,92 @@ export default function SubjectsDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(""); // 🔍 search state
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     dispatch(loadSubjects());
   }, [dispatch]);
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
     setEditingSubject(null);
     form.resetFields();
     setModalOpen(true);
-  };
+  }, [form]);
 
-  const openEditModal = (subject: Subject) => {
-    setEditingSubject(subject);
-    form.setFieldsValue({ title: subject.title });
-    setModalOpen(true);
-  };
+  const openEditModal = useCallback(
+    (subject: Subject) => {
+      setEditingSubject(subject);
+      form.setFieldsValue({ title: subject.title });
+      setModalOpen(true);
+    },
+    [form]
+  );
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
       const values = await form.validateFields();
       setSaving(true);
+
       if (editingSubject) {
-        await dispatch(editSubject({ id: editingSubject.id, title: values.title })).unwrap();
+        await dispatch(
+          editSubject({ id: editingSubject.id, title: values.title })
+        ).unwrap();
         message.success("Fan o‘zgartirildi!");
       } else {
         await dispatch(addSubject({ title: values.title })).unwrap();
         message.success("Fan qo‘shildi!");
       }
+
+      form.resetFields();
       setModalOpen(false);
     } catch (err: any) {
-      if (err?.message) message.error(err.message);
+      const text = err?.message ?? (typeof err === "string" ? err : "Xatolik yuz berdi!");
+      message.error(text);
+      console.error("Save error:", err);
     } finally {
       setSaving(false);
     }
-  };
+  }, [dispatch, editingSubject, form]);
 
-  const handleDelete = async (id: string) => {
-    try {
-      await dispatch(removeSubject(id)).unwrap();
-      message.success("Fan o‘chirildi!");
-    } catch (err: any) {
-      message.error(err.message || "Xatolik!");
-    }
-  };
+  const handleDelete = useCallback(
+    async (id: string) => {
+      console.log("Deleting subject:", id);
+      try {
+        await dispatch(removeSubject(id)).unwrap();
+        message.success("Fan o‘chirildi!");
+      } catch (err: any) {
+        console.error("Delete error:", err);
+        const text =
+          err?.message ?? err?.toString?.() ?? "Fanni o'chirishda xatolik yuz berdi!";
+        message.error(typeof text === "string" ? text : "Xatolik!");
+      }
+    },
+    [dispatch]
+  );
 
-  // 🔍 search filtering (case-insensitive)
+  // case-insensitive search
   const filteredSubjects = useMemo(() => {
+    if (!Array.isArray(subjects)) return [];
     return subjects.filter((s) =>
-      s.title.toLowerCase().includes(searchQuery.toLowerCase())
+      (s.title || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [subjects, searchQuery]);
 
-  const columns = [
+  const columns: ColumnsType<any> = [
     {
       title: "Rasm",
       dataIndex: "avatar",
+      key: "avatar",
       width: 70,
       render: () => (
-        <Avatar
-          src="/subjects-icon.png"
-          size={40}
-          style={{ backgroundColor: "#f5f5f5" }}
-        />
+        <Avatar src="/subjects-icon.png" size={40} style={{ backgroundColor: "#f5f5f5" }} />
       ),
     },
     {
       title: "Fan nomi",
       dataIndex: "title",
       key: "title",
-      render: (text: string, record: Subject) => (
+      render: (text: string, record: any) => (
         <Link href={`/admin/subjects/${record.id}`}>
           <span className="font-medium hover:underline">{text}</span>
         </Link>
@@ -117,11 +134,11 @@ export default function SubjectsDashboard() {
     {
       title: "Darajalar",
       key: "grades",
-      render: (_: any, record: Subject) =>
-        record.grades.length > 0 ? (
+      render: (_: any, record: any) =>
+        record?.grades && record.grades.length > 0 ? (
           <div style={{ maxWidth: 200, overflowX: "auto" }}>
             <Space size={[4, 4]} wrap={false}>
-              {record.grades.map((g) => (
+              {record.grades.map((g: any) => (
                 <Link
                   key={g.id}
                   href={`/admin/subjects/${record.id}/levels/${g.id}/tests`}
@@ -135,7 +152,6 @@ export default function SubjectsDashboard() {
           <Tag color="default">Mavjud emas</Tag>
         ),
     },
-
     {
       title: "Status",
       dataIndex: "is_active",
@@ -146,7 +162,7 @@ export default function SubjectsDashboard() {
     {
       title: "Amallar",
       key: "actions",
-      render: (_: any, record: Subject) => (
+      render: (_: any, record: any) => (
         <Space>
           <Button size="small" type="primary" onClick={() => openEditModal(record)}>
             Tahrirlash
@@ -157,7 +173,7 @@ export default function SubjectsDashboard() {
             cancelText="Yo‘q"
             onConfirm={() => handleDelete(record.id)}
           >
-            <Button size="small" color="red" danger>
+            <Button size="small" danger>
               O‘chirish
             </Button>
           </Popconfirm>
@@ -183,21 +199,31 @@ export default function SubjectsDashboard() {
         </div>
       </div>
 
-      {error && <p className="text-red-500">{error}</p>}
+      {error && (
+        <Alert
+          type="error"
+          message={typeof error === "string" ? error : "Server xatosi"}
+          showIcon
+          style={{ marginBottom: 12 }}
+        />
+      )}
 
       <Table
-        rowKey="id"
-        dataSource={filteredSubjects} // 🔍 filtered
+        rowKey={(rec: any) => rec.id}
+        dataSource={filteredSubjects}
         columns={columns}
         loading={loading}
         pagination={{ pageSize: 5 }}
+        scroll={{ x: 800 }}
       />
 
-      {/* Modal qo'shish / tahrirlash */}
       <Modal
         title={editingSubject ? "Fanni tahrirlash" : "Yangi fan qo‘shish"}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => {
+          form.resetFields();
+          setModalOpen(false);
+        }}
         onOk={handleSave}
         confirmLoading={saving}
         okText={editingSubject ? "Saqlash" : "Qo‘shish"}

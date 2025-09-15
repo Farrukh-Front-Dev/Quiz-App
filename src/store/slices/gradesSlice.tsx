@@ -6,12 +6,15 @@ export interface Subject {
   title: string;
 }
 
+// store/slices/gradesSlice.ts
 export interface Grade {
   id: string;
   title: string;
   subject: Subject;
   is_active: boolean;
+  questions_count?: number; // ✅ Savollar soni
 }
+
 
 interface GradeState {
   items: Grade[];

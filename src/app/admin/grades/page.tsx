@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
+import Image from "next/image";
 import {
   fetchGrades,
   createGrade,
@@ -119,12 +120,32 @@ export default function GradesPage() {
         rowKey="id"
         pagination={{ pageSize: 6 }}
         columns={[
+          {
+            title: "№",
+            render: (_: any, __: Grade, index: number) => index + 1, // ✅ Raqam tartibi
+          },
+          {
+            title: "Rasm",
+            render: () => (
+              <Image
+                src="/grades.png"
+                alt="Grade"
+                width={40}
+                height={40}
+                className="rounded-full"
+              />
+            ),
+          },
           { title: "Daraja nomi", dataIndex: "title" },
           {
             title: "Fan",
             render: (_, record: Grade) => (
               <Tag color="blue">{record.subject?.title}</Tag>
             ),
+          },
+          {
+            title: "Savollar soni",
+            render: (_, record: Grade) => record.questions_count ?? 0, // ✅ Agar API’dan kelmasa 0
           },
           {
             title: "Status",

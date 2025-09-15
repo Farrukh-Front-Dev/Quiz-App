@@ -5,30 +5,41 @@ import { RootState } from "@/store";
 import { logout } from "@/store/slices/authSlice";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 export default function Navbar() {
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const router = useRouter();
 
-  function handleLogout() {
+  const handleLogout = useCallback(() => {
     Cookies.remove("token");
     dispatch(logout());
     router.push("/login");
-  }
+  }, [dispatch, router]);
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between bg-white border-b p-4 shadow-sm">
-      <h1 className="text-lg font-semibold">CRM Admin Panel</h1>
+    <header className="w-full bg-white shadow-sm border-b sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo / Title */}
+          <h1 className="text-xl font-bold text-gray-800 select-none">
+            CRM Admin Panel
+          </h1>
 
-      <div className="flex items-center gap-4">
-        <span className="text-gray-600">{user?.name || "Admin"}</span>
-        <button
-          onClick={handleLogout}
-          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          Logout
-        </button>
+          {/* Right Side: User Info + Logout */}
+          <div className="flex items-center gap-4">
+            <span className="text-gray-700 font-medium">
+              {user?.name || "Admin"}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-sm transition"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
     </header>
   );
