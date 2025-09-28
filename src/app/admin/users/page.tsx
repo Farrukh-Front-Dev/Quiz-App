@@ -10,18 +10,8 @@ import {
   deleteUser,
   User,
 } from "@/store/slices/usersSlice";
-import {
-  Table,
-  Button,
-  Modal,
-  Form,
-  Input,
-  Space,
-  Spin,
-  Popconfirm,
-  Alert,
-  Avatar,
-} from "antd";
+import { Table, Button, Modal, Form, Input, Spin, Alert } from "antd";
+import { useUserColumns } from "@/app/admin/users/useUserColumns";
 
 export default function UsersDashboard() {
   const dispatch = useDispatch<AppDispatch>();
@@ -32,21 +22,36 @@ export default function UsersDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [pageSize, setPageSize] = useState(5);
   const [form] = Form.useForm();
 
-  // Fetch users
+  // 📡 Fetch users
   useEffect(() => {
     dispatch(fetchUsers());
   }, [dispatch]);
 
-  // ✅ Debounce search
+  // 🔄 Responsive pageSize
+  useEffect(() => {
+    const updatePageSize = () => {
+      if (window.innerWidth >= 1600) setPageSize(12);
+      else if (window.innerWidth >= 1200) setPageSize(10);
+      else if (window.innerWidth >= 992) setPageSize(8);
+      else if (window.innerWidth >= 768) setPageSize(6);
+      else setPageSize(4);
+    };
+    updatePageSize();
+    window.addEventListener("resize", updatePageSize);
+    return () => window.removeEventListener("resize", updatePageSize);
+  }, []);
+
+  // 🔍 Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(searchText), 300);
     return () => clearTimeout(timeout);
   }, [searchText]);
 
-  // ✅ Filtering
+  // 🧠 Filtered users
   const filteredUsers = useMemo(() => {
     const term = debouncedSearch.toLowerCase();
     if (!term) return users;
@@ -92,6 +97,9 @@ export default function UsersDashboard() {
     [dispatch]
   );
 
+  // 📊 Columns
+  const columns = useUserColumns({ onEdit: handleEdit, onDelete: handleDelete });
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
@@ -110,60 +118,16 @@ export default function UsersDashboard() {
         style={{ maxWidth: 400, marginBottom: 16 }}
       />
 
-      {/* ✅ Loading & Error UI */}
+      {/* Loader va xatolik */}
       {loading && <Spin tip="Yuklanmoqda..." className="mb-4" />}
       {error && <Alert type="error" message={error} className="mb-4" />}
 
-      {/* ✅ Table with only pagination */}
+      {/* Jadval */}
       <Table
         dataSource={filteredUsers}
         rowKey="id"
-        pagination={{
-          pageSize: 5,
-          showSizeChanger: false,
-        }}
-        columns={[
-          {
-            title: "Rasm",
-            dataIndex: "avatar",
-            width: 70,
-            render: () => (
-              <Avatar
-                src="/students-icon.png"
-                size={40}
-                style={{ backgroundColor: "#f5f5f5" }}
-              />
-            ),
-          },
-          { title: "Ism", dataIndex: "name", width: 150 },
-          { title: "Familiya", dataIndex: "surname", width: 150 },
-          { title: "Telefon", dataIndex: "phone", width: 150 },
-          {
-            title: "Izoh",
-            dataIndex: "izoh",
-            width: 200,
-            render: (izoh) => izoh || "-",
-          },
-          {
-            title: "Amallar",
-            width: 200,
-            render: (_, record: User) => (
-              <Space>
-                <Button type="primary" onClick={() => handleEdit(record)}>
-                  Tahrirlash
-                </Button>
-                <Popconfirm
-                  title="Rostan ham o‘chirmoqchimisiz?"
-                  onConfirm={() => handleDelete(record.id)}
-                  okText="Ha"
-                  cancelText="Yo‘q"
-                >
-                  <Button danger>O‘chirish</Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
-        ]}
+        pagination={{ pageSize, showSizeChanger: false }}
+        columns={columns}
       />
 
       {/* Modal */}
@@ -179,11 +143,7 @@ export default function UsersDashboard() {
         cancelText="Bekor qilish"
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Ism"
-            rules={[{ required: true, message: "Ism kerak!" }]}
-          >
+          <Form.Item name="name" label="Ism" rules={[{ required: true, message: "Ism kerak!" }]}>
             <Input />
           </Form.Item>
           <Form.Item name="surname" label="Familiya" rules={[{ required: true }]}>

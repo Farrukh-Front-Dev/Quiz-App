@@ -17,13 +17,9 @@ import {
   Form,
   Input,
   message,
-  Tag,
-  Space,
   Typography,
-  Popconfirm,
-  Avatar,
 } from "antd";
-import Link from "next/link";
+import { useSubjectColumns } from "@/app/admin/subjects/useSubjectColumns";
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -38,11 +34,26 @@ export default function SubjectsDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(""); // 🔍 search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pageSize, setPageSize] = useState(5);
 
   useEffect(() => {
     dispatch(loadSubjects());
   }, [dispatch]);
+
+  // Ekran o'lchamiga qarab pageSize ni moslash
+  useEffect(() => {
+    const updatePageSize = () => {
+      if (window.innerWidth >= 1600) setPageSize(12);
+      else if (window.innerWidth >= 1200) setPageSize(10);
+      else if (window.innerWidth >= 992) setPageSize(8);
+      else if (window.innerWidth >= 768) setPageSize(6);
+      else setPageSize(4);
+    };
+    updatePageSize();
+    window.addEventListener("resize", updatePageSize);
+    return () => window.removeEventListener("resize", updatePageSize);
+  }, []);
 
   const openAddModal = () => {
     setEditingSubject(null);
@@ -69,7 +80,7 @@ export default function SubjectsDashboard() {
       }
       setModalOpen(false);
     } catch (err: any) {
-      if (err?.message) message.error(err.message);
+      message.error(err?.message || "Xatolik!");
     } finally {
       setSaving(false);
     }
@@ -80,96 +91,17 @@ export default function SubjectsDashboard() {
       await dispatch(removeSubject(id)).unwrap();
       message.success("Fan o‘chirildi!");
     } catch (err: any) {
-      message.error(err.message || "Xatolik!");
+      message.error(err?.message || "Xatolik!");
     }
   };
 
-  // 🔍 search filtering (case-insensitive)
-  // 🔍 search filtering (case-insensitive)
   const filteredSubjects = useMemo(() => {
-    // subjects bo'sh bo'lsa ham [], undefined bo'lsa ham ishlay oladi
-    return (subjects ?? []).filter((s) => {
-      // s yoki s.title undefined bo'lsa, false qaytaradi
-      if (!s?.title) return false;
-      return s.title.toLowerCase().includes((searchQuery ?? "").toLowerCase());
-    });
+    return (subjects ?? []).filter((s) =>
+      s?.title?.toLowerCase().includes((searchQuery ?? "").toLowerCase())
+    );
   }, [subjects, searchQuery]);
 
-
-  const columns = [
-    {
-      title: "Rasm",
-      dataIndex: "avatar",
-      width: 70,
-      render: () => (
-        <Avatar
-          src="/subjects-icon.png"
-          size={40}
-          style={{ backgroundColor: "#f5f5f5" }}
-        />
-      ),
-    },
-    {
-      title: "Fan nomi",
-      dataIndex: "title",
-      key: "title",
-      render: (text: string, record: Subject) => (
-        <Link href={`/admin/subjects/${record.id}`}>
-          <span className="font-medium hover:underline">{text}</span>
-        </Link>
-      ),
-    },
-    {
-      title: "Darajalar",
-      key: "grades",
-      render: (_: any, record: Subject) =>
-        record.grades.length > 0 ? (
-          <div style={{ maxWidth: 200, overflowX: "auto" }}>
-            <Space size={[4, 4]} wrap={false}>
-              {record.grades.map((g) => (
-                <Link
-                  key={g.id}
-                  href={`/admin/subjects/${record.id}/levels/${g.id}/tests`}
-                >
-                  <Tag color="blue">{g.title}</Tag>
-                </Link>
-              ))}
-            </Space>
-          </div>
-        ) : (
-          <Tag color="default">Mavjud emas</Tag>
-        ),
-    },
-
-    {
-      title: "Status",
-      dataIndex: "is_active",
-      key: "status",
-      render: (is_active: boolean) =>
-        is_active ? <Tag color="green">Active</Tag> : <Tag color="red">Inactive</Tag>,
-    },
-    {
-      title: "Amallar",
-      key: "actions",
-      render: (_: any, record: Subject) => (
-        <Space>
-          <Button size="small" type="primary" onClick={() => openEditModal(record)}>
-            Tahrirlash
-          </Button>
-          <Popconfirm
-            title="Fanni o‘chirishni tasdiqlang"
-            okText="Ha"
-            cancelText="Yo‘q"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Button size="small" color="red" danger>
-              O‘chirish
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const columns = useSubjectColumns({ openEditModal, handleDelete });
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm">
@@ -192,13 +124,12 @@ export default function SubjectsDashboard() {
 
       <Table
         rowKey="id"
-        dataSource={filteredSubjects} // 🔍 filtered
+        dataSource={filteredSubjects}
         columns={columns}
         loading={loading}
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize }}
       />
 
-      {/* Modal qo'shish / tahrirlash */}
       <Modal
         title={editingSubject ? "Fanni tahrirlash" : "Yangi fan qo‘shish"}
         open={modalOpen}

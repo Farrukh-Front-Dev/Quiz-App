@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
 import {
@@ -26,70 +26,32 @@ import {
 import InfinityLoader from "@/components/admin/InfinityLoader";
 import { GRADE_OPTIONS } from "@/constants/grades";
 
-
-// Ruxsat berilgan grade’lar
-
-
-export default function GradesPage() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { items: grades, loading, error } = useSelector((state: RootState) => state.grades);
-  const { items: subjects } = useSelector((state: RootState) => state.subjects);
-
-  const [filterSubject, setFilterSubject] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
-  const [form] = Form.useForm();
+function useResponsivePageSize() {
+  const [pageSize, setPageSize] = useState(5);
 
   useEffect(() => {
-    dispatch(fetchGrades());
-    dispatch(loadSubjects());
-  }, [dispatch]);
-
-  const filteredGrades = filterSubject
-    ? grades.filter((g) => g.subject?.id === filterSubject)
-    : grades;
-
-  const openCreateModal = () => {
-    setEditingGrade(null);
-    form.resetFields();
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (grade: Grade) => {
-    setEditingGrade(grade);
-    form.setFieldsValue({
-      title: grade.title,
-      subject_id: grade.subject.id,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields();
-      if (editingGrade) {
-        await dispatch(updateGrade({ id: editingGrade.id, ...values })).unwrap();
-        message.success("Daraja o‘zgartirildi!");
-      } else {
-        await dispatch(createGrade(values)).unwrap();
-        message.success("Daraja qo‘shildi!");
-      }
-      setIsModalOpen(false);
-    } catch (err: any) {
-      message.error(err.message || "Xatolik!");
+    function updatePageSize() {
+      const w = window.innerWidth;
+      if (w < 640) setPageSize(4);
+      else if (w < 1024) setPageSize(6);
+      else if (w < 1440) setPageSize(10);
+      else setPageSize(10);
     }
-  };
+    updatePageSize();
+    window.addEventListener("resize", updatePageSize);
+    return () => window.removeEventListener("resize", updatePageSize);
+  }, []);
 
-  const handleDelete = async (id: string) => {
-    try {
-      await dispatch(deleteGrade(id)).unwrap();
-      message.success("Daraja o‘chirildi!");
-    } catch (err: any) {
-      message.error(err.message || "O‘chirishda xatolik!");
-    }
-  };
+  return pageSize;
+}
 
-  const columns = [
+type GradesTableColumnsProps = {
+  onEdit: (grade: Grade) => void;
+  onDelete: (id: string) => void;
+};
+
+const GradesTableColumns = ({ onEdit, onDelete }: GradesTableColumnsProps) => {
+  return [
     {
       title: "№",
       key: "index",
@@ -127,17 +89,93 @@ export default function GradesPage() {
       key: "actions",
       render: (_: any, record: Grade) => (
         <Space>
-          <Button onClick={() => openEditModal(record)}>Tahrirlash</Button>
+          <Button size="small" type="primary" onClick={() => onEdit(record)}>
+            Tahrirlash
+          </Button>
           <Popconfirm
             title="O‘chirishni tasdiqlaysizmi?"
-            onConfirm={() => handleDelete(record.id)}
+            onConfirm={() => onDelete(record.id)}
+            okText="Ha"
+            cancelText="Yo‘q"
           >
-            <Button danger>O‘chirish</Button>
+            <Button size="small" danger>
+              O‘chirish
+            </Button>
           </Popconfirm>
         </Space>
       ),
     },
   ];
+};
+
+export default function GradesPage() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { items: grades, loading, error } = useSelector((state: RootState) => state.grades);
+  const { items: subjects } = useSelector((state: RootState) => state.subjects);
+
+  const [filterSubject, setFilterSubject] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  const [form] = Form.useForm();
+
+  const pageSize = useResponsivePageSize();
+
+  useEffect(() => {
+    dispatch(fetchGrades());
+    dispatch(loadSubjects());
+  }, [dispatch]);
+
+  const filteredGrades = useMemo(() => {
+    return filterSubject
+      ? grades.filter((g) => g.subject?.id === filterSubject)
+      : grades;
+  }, [grades, filterSubject]);
+
+  const openCreateModal = useCallback(() => {
+    setEditingGrade(null);
+    form.resetFields();
+    setIsModalOpen(true);
+  }, [form]);
+
+  const openEditModal = useCallback(
+    (grade: Grade) => {
+      setEditingGrade(grade);
+      form.setFieldsValue({
+        title: grade.title,
+        subject_id: grade.subject.id,
+      });
+      setIsModalOpen(true);
+    },
+    [form]
+  );
+
+  const handleSave = useCallback(async () => {
+    try {
+      const values = await form.validateFields();
+      if (editingGrade) {
+        await dispatch(updateGrade({ id: editingGrade.id, ...values })).unwrap();
+        message.success("Daraja o‘zgartirildi!");
+      } else {
+        await dispatch(createGrade(values)).unwrap();
+        message.success("Daraja qo‘shildi!");
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      message.error(err.message || "Xatolik!");
+    }
+  }, [dispatch, editingGrade, form]);
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        await dispatch(deleteGrade(id)).unwrap();
+        message.success("Daraja o‘chirildi!");
+      } catch (err: any) {
+        message.error(err.message || "O‘chirishda xatolik!");
+      }
+    },
+    [dispatch]
+  );
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm">
@@ -169,8 +207,8 @@ export default function GradesPage() {
       <Table
         rowKey="id"
         dataSource={filteredGrades}
-        columns={columns}
-        pagination={{ pageSize: 5 }}
+        columns={GradesTableColumns({ onEdit: openEditModal, onDelete: handleDelete })}
+        pagination={{ pageSize }}
       />
 
       <Modal
