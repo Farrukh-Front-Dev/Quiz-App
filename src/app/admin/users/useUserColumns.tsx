@@ -65,6 +65,10 @@ export function useUserColumns({ onEdit, onDelete }: Props) {
         <Space>
           <Button type="primary" onClick={() => onEdit(record)}>
             Tahrirlash
+
+
+
+            {/* csdcasd */}
           </Button>
           <Popconfirm
             title="Rostan ham o‘chirmoqchimisiz?"
