@@ -41,7 +41,7 @@ export default function SubjectsDashboard() {
     dispatch(loadSubjects());
   }, [dispatch]);
 
-  // Ekran o'lchamiga qarab pageSize ni moslash
+  
   useEffect(() => {
     const updatePageSize = () => {
       if (window.innerWidth >= 1600) setPageSize(12);
