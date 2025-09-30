@@ -67,7 +67,7 @@ export function useUserColumns({ onEdit, onDelete }: Props) {
             Tahrirlash
 
 
-
+ 
             {/* csdcasd */}
           </Button>
           <Popconfirm

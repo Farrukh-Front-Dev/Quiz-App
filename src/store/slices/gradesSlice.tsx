@@ -32,10 +32,18 @@ export const fetchGrades = createAsyncThunk("grades/fetch", async () => {
 });
 
 // 🔹 Grade qo‘shish
+// 🔹 Grade qo‘shish
 export const createGrade = createAsyncThunk(
   "grades/create",
-  async (payload: { title: string; subject_id: string }) => {
-    const res = await api.post("/grades", payload);
+  async (payload: { title: string; subjectId: string }) => {
+    console.log("📤 createGrade payload:", payload);
+
+    const res = await api.post("/grades", {
+      title: payload.title,
+      subjectId: payload.subjectId,  // ✅ backend kutyapti shu formatni
+    });
+
+    console.log("📥 createGrade response:", res.data);
     return res.data.data as Grade;
   }
 );
@@ -43,11 +51,16 @@ export const createGrade = createAsyncThunk(
 // 🔹 Grade yangilash
 export const updateGrade = createAsyncThunk(
   "grades/update",
-  async (payload: { id: string; title: string; subject_id: string }) => {
-    const res = await api.put(`/grades/${payload.id}`, payload);
+  async (payload: { id: string; title: string; subjectId: string }) => {
+    const res = await api.put(`/grades/${payload.id}`, {
+      title: payload.title,
+      subjectId: payload.subjectId,  // ✅ faqat ID yuboramiz
+    });
+
     return res.data.data as Grade;
   }
 );
+
 
 // 🔹 Grade o‘chirish
 export const deleteGrade = createAsyncThunk(

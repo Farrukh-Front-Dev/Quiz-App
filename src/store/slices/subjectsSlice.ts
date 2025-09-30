@@ -1,11 +1,13 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import api from "@/lib/api";
+import {
+  createGrade,
+  updateGrade,
+  deleteGrade,
+  Grade,
+} from "@/store/slices/gradesSlice";
 
-export interface Grade {
-  id: string;
-  title: string;
-}
-
+// 🔹 Subject interfeysi
 export interface Subject {
   id: string;
   title: string;
@@ -24,6 +26,9 @@ const initialState: SubjectsState = {
   error: null,
 };
 
+// ================= API THUNK =================
+
+// 🔹 Barcha fanlarni yuklash
 export const loadSubjects = createAsyncThunk<Subject[]>(
   "subjects/load",
   async () => {
@@ -32,6 +37,16 @@ export const loadSubjects = createAsyncThunk<Subject[]>(
   }
 );
 
+// 🔹 Qidiruv
+export const searchSubjectsByTitle = createAsyncThunk<Subject[], string>(
+  "subjects/search",
+  async (query) => {
+    const res = await api.get(`/subjects/title/${encodeURIComponent(query)}`);
+    return res.data.data;
+  }
+);
+
+// 🔹 Fan qo‘shish
 export const addSubject = createAsyncThunk<Subject, { title: string }>(
   "subjects/add",
   async ({ title }) => {
@@ -40,14 +55,16 @@ export const addSubject = createAsyncThunk<Subject, { title: string }>(
   }
 );
 
-export const editSubject = createAsyncThunk<Subject, { id: string; title: string }>(
-  "subjects/edit",
-  async ({ id, title }) => {
-    const res = await api.put(`/subjects/${id}`, { title });
-    return res.data;
-  }
-);
+// 🔹 Fan tahrirlash
+export const editSubject = createAsyncThunk<
+  Subject,
+  { id: string; title: string }
+>("subjects/edit", async ({ id, title }) => {
+  const res = await api.put(`/subjects/${id}`, { title });
+  return res.data;
+});
 
+// 🔹 Fan o‘chirish
 export const removeSubject = createAsyncThunk<string, string>(
   "subjects/remove",
   async (id) => {
@@ -56,20 +73,41 @@ export const removeSubject = createAsyncThunk<string, string>(
   }
 );
 
-// --- SLICE ---
+// ================= SLICE =================
+
 const subjectsSlice = createSlice({
   name: "subjects",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // ===== SUBJECT CRUD =====
       .addCase(loadSubjects.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(loadSubjects.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload;
       })
+      .addCase(loadSubjects.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Fanlarni yuklashda xatolik!";
+      })
+
+      .addCase(searchSubjectsByTitle.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(searchSubjectsByTitle.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload;
+      })
+      .addCase(searchSubjectsByTitle.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Qidiruvda xatolik!";
+      })
+
       .addCase(addSubject.fulfilled, (state, action) => {
         state.items.push(action.payload);
       })
@@ -79,6 +117,28 @@ const subjectsSlice = createSlice({
       })
       .addCase(removeSubject.fulfilled, (state, action) => {
         state.items = state.items.filter((s) => s.id !== action.payload);
+      })
+
+      // ===== GRADE CRUD (subjects bilan bog‘langan) =====
+      .addCase(createGrade.fulfilled, (state, action) => {
+        const grade = action.payload;
+        const subject = state.items.find((s) => s.id === grade.subject.id);
+        if (subject) {
+          subject.grades.push(grade);
+        }
+      })
+      .addCase(updateGrade.fulfilled, (state, action) => {
+        const grade = action.payload;
+        const subject = state.items.find((s) => s.id === grade.subject.id);
+        if (subject) {
+          const idx = subject.grades.findIndex((g) => g.id === grade.id);
+          if (idx !== -1) subject.grades[idx] = grade;
+        }
+      })
+      .addCase(deleteGrade.fulfilled, (state, action: PayloadAction<string>) => {
+        state.items.forEach((subject) => {
+          subject.grades = subject.grades.filter((g) => g.id !== action.payload);
+        });
       });
   },
 });

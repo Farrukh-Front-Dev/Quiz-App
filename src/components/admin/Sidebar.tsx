@@ -11,20 +11,16 @@ import {
   GraduationCap, 
   HelpCircle,
   ChevronLeft,
-  Settings,
+  // Settings,
   LogOut
 } from "lucide-react";
 
 const menuItems = [
+  
   { 
     href: "/admin/dashboard", 
     label: "Dashboard", 
     icon: LayoutDashboard 
-  },
-  { 
-    href: "/admin/subjects", 
-    label: "Subjects", 
-    icon: BookOpen 
   },
   { 
     href: "/admin/users", 
@@ -32,23 +28,19 @@ const menuItems = [
     icon: Users 
   },
   { 
-    href: "/admin/grades", 
-    label: "Grades", 
-    icon: GraduationCap 
+    href: "/admin/subjects", 
+    label: "Subjects", 
+    icon: BookOpen 
   },
   { 
     href: "/admin/questions", 
     label: "Questions", 
     icon: HelpCircle 
   },
+  
 ];
 
 const bottomMenuItems = [
-  { 
-    href: "/admin/settings", 
-    label: "Settings", 
-    icon: Settings 
-  },
   { 
     href: "/login", 
     label: "Logout", 
@@ -178,7 +170,7 @@ export default function Sidebar() {
               <span className="text-sm font-medium text-gray-600">AD</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">Admin User</p>
+              <p className="text-sm font-medium text-gray-900 truncate">Admin </p>
               <p className="text-xs text-gray-500 truncate">admin@example.com</p>
             </div>
           </div>

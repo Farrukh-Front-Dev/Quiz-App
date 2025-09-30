@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   loadSubjects,
   addSubject,
   editSubject,
   removeSubject,
+  searchSubjectsByTitle,
   Subject,
 } from "@/store/slices/subjectsSlice";
+import {
+  createGrade,
+  updateGrade,
+  deleteGrade,
+  Grade,
+} from "@/store/slices/gradesSlice";
 import { RootState, AppDispatch } from "@/store";
 import {
   Table,
@@ -18,11 +25,15 @@ import {
   Input,
   message,
   Typography,
+  Collapse,
+  Space,
 } from "antd";
+import { PlusOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { useSubjectColumns } from "@/app/admin/subjects/useSubjectColumns";
 
 const { Title } = Typography;
 const { Search } = Input;
+const { Panel } = Collapse;
 
 export default function SubjectsDashboard() {
   const dispatch = useDispatch<AppDispatch>();
@@ -31,17 +42,21 @@ export default function SubjectsDashboard() {
   );
 
   const [form] = Form.useForm();
+  const [gradeForm] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState(5);
+  const [gradesModalOpen, setGradesModalOpen] = useState(false);
+  const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  const [gradeSaving, setGradeSaving] = useState(false);
 
   useEffect(() => {
     dispatch(loadSubjects());
   }, [dispatch]);
 
-  
   useEffect(() => {
     const updatePageSize = () => {
       if (window.innerWidth >= 1600) setPageSize(12);
@@ -55,6 +70,7 @@ export default function SubjectsDashboard() {
     return () => window.removeEventListener("resize", updatePageSize);
   }, []);
 
+  // ====== SUBJECT CRUD ======
   const openAddModal = () => {
     setEditingSubject(null);
     form.resetFields();
@@ -72,7 +88,9 @@ export default function SubjectsDashboard() {
       const values = await form.validateFields();
       setSaving(true);
       if (editingSubject) {
-        await dispatch(editSubject({ id: editingSubject.id, title: values.title })).unwrap();
+        await dispatch(
+          editSubject({ id: editingSubject.id, title: values.title })
+        ).unwrap();
         message.success("Fan o‘zgartirildi!");
       } else {
         await dispatch(addSubject({ title: values.title })).unwrap();
@@ -95,13 +113,62 @@ export default function SubjectsDashboard() {
     }
   };
 
-  const filteredSubjects = useMemo(() => {
-    return (subjects ?? []).filter((s) =>
-      s?.title?.toLowerCase().includes((searchQuery ?? "").toLowerCase())
-    );
-  }, [subjects, searchQuery]);
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    if (value.trim()) {
+      dispatch(searchSubjectsByTitle(value));
+    } else {
+      dispatch(loadSubjects());
+    }
+  };
 
-  const columns = useSubjectColumns({ openEditModal, handleDelete });
+  // ====== GRADE CRUD ======
+  const openGradesModal = (subject: Subject) => {
+    setCurrentSubject(subject);
+    setGradesModalOpen(true);
+  };
+
+  const handleSaveGrade = async () => {
+    try {
+      const values = await gradeForm.validateFields();
+      setGradeSaving(true);
+      if (editingGrade) {
+        await dispatch(
+          updateGrade({
+            id: editingGrade.id, title: values.title,
+            subjectId: ""
+          })
+        ).unwrap();
+        message.success("Daraja o‘zgartirildi!");
+      } else if (currentSubject) {
+        await dispatch(
+          createGrade({ subjectId: currentSubject.id, title: values.title })
+        ).unwrap();
+        message.success("Daraja qo‘shildi!");
+      }
+      setGradesModalOpen(true);
+      setEditingGrade(null);
+      gradeForm.resetFields();
+    } catch (err: any) {
+      message.error(err?.message || "Xatolik!");
+    } finally {
+      setGradeSaving(false);
+    }
+  };
+
+  const handleDeleteGrade = async (id: string) => {
+    console.log("🗑️ O‘chirilayotgan grade ID:", id);
+    try {
+      await dispatch(deleteGrade(id)).unwrap();
+      message.success("Daraja o‘chirildi!");
+    } catch (err: any) {
+      console.error("❌ Delete error:", err);
+      message.error(err?.message || "Xatolik!");
+    }
+  };
+  
+
+  const columns = useSubjectColumns({ openEditModal, handleDelete, openGradesModal });
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm">
@@ -110,7 +177,8 @@ export default function SubjectsDashboard() {
         <div className="flex gap-2">
           <Search
             placeholder="Fanlarni izlash..."
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
             allowClear
             style={{ width: 250 }}
           />
@@ -124,12 +192,59 @@ export default function SubjectsDashboard() {
 
       <Table
         rowKey="id"
-        dataSource={filteredSubjects}
+        dataSource={subjects}
         columns={columns}
         loading={loading}
         pagination={{ pageSize }}
+        expandable={{
+          expandedRowRender: (subject: Subject) => (
+            <Collapse>
+              <Panel header="Darajalar" key="1">
+                <Space direction="vertical" className="w-full">
+                  {subject.grades?.map((g) => (
+                    <div
+                      key={g.id}
+                      className="flex justify-between items-center border p-2 rounded"
+                    >
+                      <span>{g.title}</span>
+                      <Space>
+                        <Button
+                          icon={<EditOutlined />}
+                          onClick={() => {
+                            setEditingGrade(g);
+                            gradeForm.setFieldsValue({ title: g.title });
+                            setCurrentSubject(subject);
+                            setGradesModalOpen(true);
+                          }}
+                        />
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleDeleteGrade(g.id)}
+                        />
+                      </Space>
+                    </div>
+                  ))}
+                  <Button
+                    type="dashed"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      setEditingGrade(null);
+                      gradeForm.resetFields();
+                      setCurrentSubject(subject);
+                      setGradesModalOpen(true);
+                    }}
+                  >
+                    + Yangi daraja
+                  </Button>
+                </Space>
+              </Panel>
+            </Collapse>
+          ),
+        }}
       />
 
+      {/* SUBJECT Modal */}
       <Modal
         title={editingSubject ? "Fanni tahrirlash" : "Yangi fan qo‘shish"}
         open={modalOpen}
@@ -145,6 +260,29 @@ export default function SubjectsDashboard() {
             rules={[{ required: true, message: "Fan nomi majburiy!" }]}
           >
             <Input placeholder="Masalan: Matematika" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* GRADE Modal */}
+      <Modal
+        title={editingGrade ? "Darajani tahrirlash" : "Yangi daraja qo‘shish"}
+        open={gradesModalOpen}
+        onCancel={() => {
+          setGradesModalOpen(false);
+          setEditingGrade(null);
+        }}
+        onOk={handleSaveGrade}
+        confirmLoading={gradeSaving}
+        okText={editingGrade ? "Saqlash" : "Qo‘shish"}
+      >
+        <Form form={gradeForm} layout="vertical">
+          <Form.Item
+            name="title"
+            label="Daraja nomi"
+            rules={[{ required: true, message: "Daraja nomi majburiy!" }]}
+          >
+            <Input placeholder="Masalan: 1-sinf" />
           </Form.Item>
         </Form>
       </Modal>

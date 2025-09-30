@@ -1,115 +1,199 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
-import { fetchQuestions, createQuestion, updateQuestion, deleteQuestion, Question } from "@/store/slices/questionsSlice";
+import {
+  fetchQuestions,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  Question,
+} from "@/store/slices/questionsSlice";
 import { loadSubjects, Subject } from "@/store/slices/subjectsSlice";
-import { Table, Button, Space, Popconfirm, message, Spin, Form, Select } from "antd";
-import QuestionFormModal from "@/components/admin/QuestionFormModal";
 
-const { Option } = Select;
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+
+import QuestionFormModal from "./QuestionFormModal";
+import InfinityLoader from "@/components/admin/InfinityLoader";
 
 export default function QuestionsDashboard() {
   const dispatch = useDispatch<AppDispatch>();
-  const { items: questions, loading, error } = useSelector((state: RootState) => state.questions);
-  const { items: subjects, loading: subjectsLoading } = useSelector((state: RootState) => state.subjects);
+  const { items: questions, loading } = useSelector(
+    (state: RootState) => state.questions
+  );
+  const { items: subjects, loading: subjectsLoading } = useSelector(
+    (state: RootState) => state.subjects
+  );
 
-  const [form] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
-  const [selectedSubject, setSelectedSubject] = useState<string>();
-  const [selectedGrade, setSelectedGrade] = useState<string>();
+  const [selectedSubject, setSelectedSubject] = useState<string | undefined>(
+    undefined
+  );
+  const [selectedGrade, setSelectedGrade] = useState<string | undefined>(
+    undefined
+  );
 
-  useEffect(() => { dispatch(loadSubjects()); }, [dispatch]);
-  useEffect(() => { dispatch(fetchQuestions({ subjectId: selectedSubject, gradeId: selectedGrade })); }, [dispatch, selectedSubject, selectedGrade]);
+  // Ma'lumotlarni yuklash
+  useEffect(() => {
+    dispatch(loadSubjects());
+    dispatch(fetchQuestions({}));
+  }, [dispatch]);
 
-  const openAddModal = () => { setEditingQuestion(null); form.resetFields(); setModalOpen(true); };
+  // Grade tanlanganda filter
+  useEffect(() => {
+    if (selectedGrade) {
+      dispatch(fetchQuestions({ gradeId: selectedGrade }));
+    }
+  }, [dispatch, selectedGrade]);
+
+  const filteredQuestions = useMemo(() => {
+    if (!selectedSubject) return questions;
+    return questions.filter((q) => q.subject?.id === selectedSubject);
+  }, [questions, selectedSubject]);
+
+  const openAddModal = () => {
+    setEditingQuestion(null);
+    setModalOpen(true);
+  };
+
   const openEditModal = (question: Question) => {
-    if (!question.subject || !question.grade) { message.error("Savol ma'lumotlari to‘liq emas!"); return; }
     setEditingQuestion(question);
-    form.setFieldsValue({
-      question: question.question,
-      subjectId: question.subject.id,
-      gradeId: question.grade.id,
-      options: question.options.map(o => ({ variant: o.variant, is_correct: o.is_correct, id: o.id })),
-    });
-    setSelectedSubject(question.subject.id);
-    setSelectedGrade(question.grade.id);
     setModalOpen(true);
   };
 
   const handleSave = async (values: any) => {
     try {
-      const payload = { ...values, options: values.options.map((o: any) => ({ id: o.id, variant: o.variant, is_correct: o.is_correct })) };
+      const payload = {
+        ...values,
+        options: values.options.map((o: any) => ({
+          id: o.id,
+          variant: o.variant,
+          is_correct: o.is_correct,
+        })),
+      };
       if (editingQuestion) {
-        await dispatch(updateQuestion({ id: editingQuestion.id, ...payload })).unwrap();
-        message.success("Savol tahrirlandi!");
+        await dispatch(updateQuestion({ id: editingQuestion.id, ...payload }))
+          .unwrap();
       } else {
         await dispatch(createQuestion(payload)).unwrap();
-        message.success("Savol qo‘shildi!");
       }
       setModalOpen(false);
     } catch (err: any) {
-      message.error(err.message || "Xatolik!");
+      console.error(err);
     }
   };
 
   const handleDelete = async (id: string) => {
-    try { await dispatch(deleteQuestion(id)).unwrap(); message.success("Savol o‘chirildi!"); }
-    catch (err: any) { message.error(err.message || "Xatolik!"); }
+    try {
+      await dispatch(deleteQuestion(id)).unwrap();
+    } catch (err: any) {
+      console.error(err);
+    }
   };
 
-  const columns = [
-    { title: "№", dataIndex: "index", render: (_: any, __: any, index: number) => index + 1 },
-    { title: "Savol", dataIndex: "question", key: "question" },
-    { title: "A", dataIndex: ["options", 0, "variant"], key: "a" },
-    { title: "B", dataIndex: ["options", 1, "variant"], key: "b" },
-    { title: "C", dataIndex: ["options", 2, "variant"], key: "c" },
-    { title: "Javob", key: "correct", render: (_: any, record: Question) => record.options.find(o => o.is_correct)?.variant || "-" },
-    { title: "Amallar", key: "actions", render: (_: any, record: Question) => (
-      <Space>
-        <Button onClick={() => openEditModal(record)}>Tahrirlash</Button>
-        <Popconfirm title="Rostan ham o‘chirmoqchimisiz?" onConfirm={() => handleDelete(record.id)} okText="Ha" cancelText="Yo‘q">
-          <Button danger>O‘chirish</Button>
-        </Popconfirm>
-      </Space>
-    )},
-  ];
-
-  if (loading || subjectsLoading) return <div className="flex justify-center items-center py-20"><Spin size="large" /></div>;
+  if (loading || subjectsLoading)
+    return (
+      <div className="flex justify-center py-10">
+        <InfinityLoader />
+      </div>
+    );
+  
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">❓ Savollar boshqaruvi</h1>
-      <Space className="mb-4">
-        <Select
-          placeholder="Fan tanlang"
-          style={{ width: 200 }}
-          allowClear
-          value={selectedSubject}
-          onChange={(v) => { setSelectedSubject(v); setSelectedGrade(undefined); form.setFieldsValue({ subjectId: v, gradeId: undefined }); }}
-        >
-          {subjects.map(s => <Option key={s.id} value={s.id}>{s.title}</Option>)}
+    <div className="p-6 space-y-4">
+      <h1 className="text-2xl font-bold">❓ Savollar boshqaruvi</h1>
+
+      <div className="flex flex-wrap gap-4">
+        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+          <SelectTrigger className="w-[200px]">Fan tanlang</SelectTrigger>
+          <SelectContent>
+            {subjects.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
 
         <Select
-          placeholder="Daraja tanlang"
-          style={{ width: 200 }}
-          allowClear
           value={selectedGrade}
-          onChange={(v) => { setSelectedGrade(v); form.setFieldsValue({ gradeId: v }); }}
+          onValueChange={setSelectedGrade}
           disabled={!selectedSubject}
         >
-          {subjects.find(s => s.id === selectedSubject)?.grades.map(g => (
-            <Option key={g.id} value={g.id}>{g.title}</Option>
-          ))}
+          <SelectTrigger className="w-[200px]">Daraja tanlang</SelectTrigger>
+          <SelectContent>
+            {subjects
+              .find((s) => s.id === selectedSubject)
+              ?.grades.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.title}
+                </SelectItem>
+              ))}
+          </SelectContent>
         </Select>
 
-        <Button type="primary" onClick={openAddModal}>➕ Savol qo‘shish</Button>
-      </Space>
+        <Button onClick={openAddModal}>➕ Savol qo‘shish</Button>
+      </div>
 
-      <Table rowKey="id" dataSource={questions} columns={columns} />
+      <Card className="p-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              <TableHead>Savol</TableHead>
+              <TableHead>A</TableHead>
+              <TableHead>B</TableHead>
+              <TableHead>C</TableHead>
+              <TableHead>Javob</TableHead>
+              <TableHead>Amallar</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+  {filteredQuestions.map((q, idx) => (
+    <TableRow key={q.id}>
+      <TableCell>{idx + 1}</TableCell>
+      <TableCell>{q.question || "-"}</TableCell>
+      <TableCell>{q.options?.[0]?.variant || "-"}</TableCell>
+      <TableCell>{q.options?.[1]?.variant || "-"}</TableCell>
+      <TableCell>{q.options?.[2]?.variant || "-"}</TableCell>
+      <TableCell>
+        {q.options?.find((o) => o.is_correct)?.variant || "-"}
+      </TableCell>
+      <TableCell className="flex gap-2">
+        <Button size="sm" onClick={() => openEditModal(q)}>
+          Tahrirlash
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => handleDelete(q.id)}
+        >
+          O‘chirish
+        </Button>
+      </TableCell>
+    </TableRow>
+  ))}
+</TableBody>
+
+        </Table>
+      </Card>
 
       <QuestionFormModal
         open={modalOpen}
@@ -117,7 +201,6 @@ export default function QuestionsDashboard() {
         onSave={handleSave}
         editingQuestion={editingQuestion}
         subjects={subjects}
-        form={form}
       />
     </div>
   );

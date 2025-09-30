@@ -9,9 +9,14 @@ import { Subject } from "@/store/slices/subjectsSlice";
 type Props = {
   openEditModal: (subject: Subject) => void;
   handleDelete: (id: string) => void;
+  openGradesModal: (subject: Subject) => void; // 🔹 yangi qo‘shildi
 };
 
-export function useSubjectColumns({ openEditModal, handleDelete }: Props) {
+export function useSubjectColumns({
+  openEditModal,
+  handleDelete,
+  openGradesModal,
+}: Props) {
   const columns: ColumnType<Subject>[] = [
     {
       title: "№",
@@ -49,7 +54,7 @@ export function useSubjectColumns({ openEditModal, handleDelete }: Props) {
       responsive: ["sm", "md"] as unknown as Breakpoint[],
       render: (_: any, record: Subject) =>
         record.grades.length > 0 ? (
-          <div style={{ maxWidth: 200, overflowX: "auto" }}>
+          <div style={{ maxWidth: 250, overflowX: "auto" }}>
             <Space size={[4, 4]} wrap={false}>
               {record.grades.map((g) => (
                 <Link
@@ -71,7 +76,11 @@ export function useSubjectColumns({ openEditModal, handleDelete }: Props) {
       key: "status",
       responsive: ["md", "lg"] as unknown as Breakpoint[],
       render: (is_active: boolean) =>
-        is_active ? <Tag color="green">Active</Tag> : <Tag color="red">Inactive</Tag>,
+        is_active ? (
+          <Tag color="green">Active</Tag>
+        ) : (
+          <Tag color="red">Inactive</Tag>
+        ),
     },
     {
       title: "Amallar",
