@@ -33,7 +33,7 @@ export default function ProtectedRoute({
   }, [mounted, token, user, role, router]);
 
   if (!mounted) {
-    // SSR va client bir xil HTML qaytaradi -> mismatch bo‘lmaydi
+    
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 

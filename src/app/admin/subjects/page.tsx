@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   loadSubjects,
@@ -17,46 +17,46 @@ import {
   Grade,
 } from "@/store/slices/gradesSlice";
 import { RootState, AppDispatch } from "@/store";
-import {
-  Table,
-  Button,
-  Modal,
-  Form,
-  Input,
-  message,
-  Typography,
-  Collapse,
-  Space,
-} from "antd";
-import { PlusOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { Table, Button, Typography, notification, Input } from "antd";
 import { useSubjectColumns } from "@/app/admin/subjects/useSubjectColumns";
+import SuperModal from "@/components/admin/SuperModal";
+import { BookOpenText, Plus } from "lucide-react"; // ✅ Lucide icons
 
 const { Title } = Typography;
-const { Search } = Input;
-const { Panel } = Collapse;
+
+// ===== Notification Hook =====
+const useNotify = () => {
+  const notifySuccess = useCallback((message: string) => {
+    notification.success({ message, placement: "topRight" });
+  }, []);
+  const notifyError = useCallback((message: string) => {
+    notification.error({ message, placement: "topRight" });
+  }, []);
+  return { notifySuccess, notifyError };
+};
 
 export default function SubjectsDashboard() {
   const dispatch = useDispatch<AppDispatch>();
-  const { items: subjects, loading, error } = useSelector(
-    (state: RootState) => state.subjects
-  );
+  const {
+    items: subjects,
+    loading,
+    error,
+  } = useSelector((state: RootState) => state.subjects);
 
-  const [form] = Form.useForm();
-  const [gradeForm] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [saving, setSaving] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState(5);
-  const [gradesModalOpen, setGradesModalOpen] = useState(false);
-  const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
-  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
-  const [gradeSaving, setGradeSaving] = useState(false);
+
+  const { notifySuccess, notifyError } = useNotify();
 
   useEffect(() => {
     dispatch(loadSubjects());
   }, [dispatch]);
 
+  // responsive page size
   useEffect(() => {
     const updatePageSize = () => {
       if (window.innerWidth >= 1600) setPageSize(12);
@@ -73,43 +73,43 @@ export default function SubjectsDashboard() {
   // ====== SUBJECT CRUD ======
   const openAddModal = () => {
     setEditingSubject(null);
-    form.resetFields();
     setModalOpen(true);
   };
 
   const openEditModal = (subject: Subject) => {
     setEditingSubject(subject);
-    form.setFieldsValue({ title: subject.title });
     setModalOpen(true);
   };
 
-  const handleSave = async () => {
+  const handleSaveSubject = async (values: { id?: string; title: string }) => {
     try {
-      const values = await form.validateFields();
       setSaving(true);
+
       if (editingSubject) {
         await dispatch(
           editSubject({ id: editingSubject.id, title: values.title })
         ).unwrap();
-        message.success("Fan o‘zgartirildi!");
+        notifySuccess("Fan o‘zgartirildi!");
       } else {
         await dispatch(addSubject({ title: values.title })).unwrap();
-        message.success("Fan qo‘shildi!");
+        notifySuccess("Fan qo‘shildi!");
       }
+
       setModalOpen(false);
+      setEditingSubject(null);
     } catch (err: any) {
-      message.error(err?.message || "Xatolik!");
+      notifyError(err?.message || "Xatolik!");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteSubject = async (id: string) => {
     try {
       await dispatch(removeSubject(id)).unwrap();
-      message.success("Fan o‘chirildi!");
+      notifySuccess("Fan o‘chirildi!");
     } catch (err: any) {
-      message.error(err?.message || "Xatolik!");
+      notifyError(err?.message || "Xatolik!");
     }
   };
 
@@ -122,68 +122,94 @@ export default function SubjectsDashboard() {
     }
   };
 
-  // ====== GRADE CRUD ======
-  const openGradesModal = (subject: Subject) => {
-    setCurrentSubject(subject);
-    setGradesModalOpen(true);
-  };
+  // ====== GRADE CRUD (parent state bilan sync) ======
+  // SubjectsDashboard.tsx
 
-  const handleSaveGrade = async () => {
+  const handleAddGrade = async (payload: {
+    title: string;
+    subjectId: string;
+  }): Promise<Grade> => {
     try {
-      const values = await gradeForm.validateFields();
-      setGradeSaving(true);
-      if (editingGrade) {
-        await dispatch(
-          updateGrade({
-            id: editingGrade.id, title: values.title,
-            subjectId: ""
-          })
-        ).unwrap();
-        message.success("Daraja o‘zgartirildi!");
-      } else if (currentSubject) {
-        await dispatch(
-          createGrade({ subjectId: currentSubject.id, title: values.title })
-        ).unwrap();
-        message.success("Daraja qo‘shildi!");
-      }
-      setGradesModalOpen(true);
-      setEditingGrade(null);
-      gradeForm.resetFields();
+      const newGrade = await dispatch(createGrade(payload)).unwrap();
+      // parent state bilan sync
+      setEditingSubject((prev) =>
+        prev ? { ...prev, grades: [...prev.grades, newGrade] } : prev
+      );
+      notifySuccess("Daraja qo‘shildi!");
+      return newGrade; // ✅ Grade qaytaryapmiz
     } catch (err: any) {
-      message.error(err?.message || "Xatolik!");
-    } finally {
-      setGradeSaving(false);
+      notifyError(err?.message || "Xatolik!");
+      throw err;
     }
   };
 
-  const handleDeleteGrade = async (id: string) => {
-    console.log("🗑️ O‘chirilayotgan grade ID:", id);
+  const handleUpdateGrade = async (payload: {
+    id: string;
+    title: string;
+    subjectId: string;
+  }): Promise<Grade> => {
+    try {
+      const updatedGrade = await dispatch(updateGrade(payload)).unwrap();
+      setEditingSubject((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          grades: prev.grades.map((g) =>
+            g.id === updatedGrade.id ? updatedGrade : g
+          ),
+        };
+      });
+      notifySuccess("Daraja o‘zgartirildi!");
+      return updatedGrade; // ✅ Grade qaytaryapmiz
+    } catch (err: any) {
+      notifyError(err?.message || "Xatolik!");
+      throw err;
+    }
+  };
+
+  // SubjectsDashboard.tsx
+  const handleDeleteGrade = async (id: string): Promise<void> => {
     try {
       await dispatch(deleteGrade(id)).unwrap();
-      message.success("Daraja o‘chirildi!");
+      // parent state bilan sync
+      setEditingSubject((prev) =>
+        prev
+          ? { ...prev, grades: prev.grades.filter((g) => g.id !== id) }
+          : prev
+      );
+      notifySuccess("Daraja o‘chirildi!");
     } catch (err: any) {
-      console.error("❌ Delete error:", err);
-      message.error(err?.message || "Xatolik!");
+      notifyError(err?.message || "Xatolik!");
+      throw err;
     }
   };
-  
 
-  const columns = useSubjectColumns({ openEditModal, handleDelete, openGradesModal });
+  const columns = useSubjectColumns({
+    openEditModal,
+    handleDelete: handleDeleteSubject,
+  });
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm">
       <div className="flex justify-between items-center mb-4">
-        <Title level={3}>📚 Fanlar boshqaruvi</Title>
+        <Title className="flex justify-between items-center gap-2" level={3}>
+          <BookOpenText className="text-green-600" />
+          Fanlar boshqaruvi
+        </Title>
         <div className="flex gap-2">
-          <Search
+          <Input.Search
             placeholder="Fanlarni izlash..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             allowClear
             style={{ width: 250 }}
           />
-          <Button type="primary" onClick={openAddModal}>
-            + Yangi fan
+          <Button
+            type="primary"
+            icon={<Plus size={16} />}
+            onClick={openAddModal}
+          >
+            Yangi fan
           </Button>
         </div>
       </div>
@@ -196,96 +222,19 @@ export default function SubjectsDashboard() {
         columns={columns}
         loading={loading}
         pagination={{ pageSize }}
-        expandable={{
-          expandedRowRender: (subject: Subject) => (
-            <Collapse>
-              <Panel header="Darajalar" key="1">
-                <Space direction="vertical" className="w-full">
-                  {subject.grades?.map((g) => (
-                    <div
-                      key={g.id}
-                      className="flex justify-between items-center border p-2 rounded"
-                    >
-                      <span>{g.title}</span>
-                      <Space>
-                        <Button
-                          icon={<EditOutlined />}
-                          onClick={() => {
-                            setEditingGrade(g);
-                            gradeForm.setFieldsValue({ title: g.title });
-                            setCurrentSubject(subject);
-                            setGradesModalOpen(true);
-                          }}
-                        />
-                        <Button
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={() => handleDeleteGrade(g.id)}
-                        />
-                      </Space>
-                    </div>
-                  ))}
-                  <Button
-                    type="dashed"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      setEditingGrade(null);
-                      gradeForm.resetFields();
-                      setCurrentSubject(subject);
-                      setGradesModalOpen(true);
-                    }}
-                  >
-                    + Yangi daraja
-                  </Button>
-                </Space>
-              </Panel>
-            </Collapse>
-          ),
-        }}
       />
 
-      {/* SUBJECT Modal */}
-      <Modal
-        title={editingSubject ? "Fanni tahrirlash" : "Yangi fan qo‘shish"}
+      {/* SUPER MODAL */}
+      <SuperModal
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={handleSave}
-        confirmLoading={saving}
-        okText={editingSubject ? "Saqlash" : "Qo‘shish"}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="title"
-            label="Fan nomi"
-            rules={[{ required: true, message: "Fan nomi majburiy!" }]}
-          >
-            <Input placeholder="Masalan: Matematika" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* GRADE Modal */}
-      <Modal
-        title={editingGrade ? "Darajani tahrirlash" : "Yangi daraja qo‘shish"}
-        open={gradesModalOpen}
-        onCancel={() => {
-          setGradesModalOpen(false);
-          setEditingGrade(null);
-        }}
-        onOk={handleSaveGrade}
-        confirmLoading={gradeSaving}
-        okText={editingGrade ? "Saqlash" : "Qo‘shish"}
-      >
-        <Form form={gradeForm} layout="vertical">
-          <Form.Item
-            name="title"
-            label="Daraja nomi"
-            rules={[{ required: true, message: "Daraja nomi majburiy!" }]}
-          >
-            <Input placeholder="Masalan: 1-sinf" />
-          </Form.Item>
-        </Form>
-      </Modal>
+        loading={saving}
+        subject={editingSubject}
+        onClose={() => setModalOpen(false)}
+        onSaveSubject={handleSaveSubject}
+        onAddGrade={handleAddGrade}
+        onUpdateGrade={handleUpdateGrade}
+        onDeleteGrade={handleDeleteGrade}
+      />
     </div>
   );
 }

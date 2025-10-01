@@ -89,8 +89,9 @@ export default function QuestionsDashboard() {
         })),
       };
       if (editingQuestion) {
-        await dispatch(updateQuestion({ id: editingQuestion.id, ...payload }))
-          .unwrap();
+        await dispatch(
+          updateQuestion({ id: editingQuestion.id, ...payload })
+        ).unwrap();
       } else {
         await dispatch(createQuestion(payload)).unwrap();
       }
@@ -114,7 +115,6 @@ export default function QuestionsDashboard() {
         <InfinityLoader />
       </div>
     );
-  
 
   return (
     <div className="p-6 space-y-4">
@@ -166,32 +166,31 @@ export default function QuestionsDashboard() {
             </TableRow>
           </TableHeader>
           <TableBody>
-  {filteredQuestions.map((q, idx) => (
-    <TableRow key={q.id}>
-      <TableCell>{idx + 1}</TableCell>
-      <TableCell>{q.question || "-"}</TableCell>
-      <TableCell>{q.options?.[0]?.variant || "-"}</TableCell>
-      <TableCell>{q.options?.[1]?.variant || "-"}</TableCell>
-      <TableCell>{q.options?.[2]?.variant || "-"}</TableCell>
-      <TableCell>
-        {q.options?.find((o) => o.is_correct)?.variant || "-"}
-      </TableCell>
-      <TableCell className="flex gap-2">
-        <Button size="sm" onClick={() => openEditModal(q)}>
-          Tahrirlash
-        </Button>
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() => handleDelete(q.id)}
-        >
-          O‘chirish
-        </Button>
-      </TableCell>
-    </TableRow>
-  ))}
-</TableBody>
-
+            {filteredQuestions.map((q, idx) => (
+              <TableRow key={q.id}>
+                <TableCell>{idx + 1}</TableCell>
+                <TableCell>{q.question || "-"}</TableCell>
+                <TableCell>{q.options?.[0]?.variant || "-"}</TableCell>
+                <TableCell>{q.options?.[1]?.variant || "-"}</TableCell>
+                <TableCell>{q.options?.[2]?.variant || "-"}</TableCell>
+                <TableCell>
+                  {q.options?.find((o) => o.is_correct)?.variant || "-"}
+                </TableCell>
+                <TableCell className="flex gap-2">
+                  <Button size="sm" onClick={() => openEditModal(q)}>
+                    Tahrirlash
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDelete(q.id)}
+                  >
+                    O‘chirish
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
         </Table>
       </Card>
 

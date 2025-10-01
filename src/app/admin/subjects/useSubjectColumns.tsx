@@ -1,21 +1,18 @@
 "use client";
 
 import { Avatar, Button, Popconfirm, Space, Tag } from "antd";
-import Link from "next/link";
 import type { ColumnType } from "antd/es/table";
-import type { Breakpoint } from "antd/es/_util/responsiveObserver";
 import { Subject } from "@/store/slices/subjectsSlice";
+import { Trash2, Edit } from "lucide-react";
 
 type Props = {
   openEditModal: (subject: Subject) => void;
   handleDelete: (id: string) => void;
-  openGradesModal: (subject: Subject) => void; // 🔹 yangi qo‘shildi
 };
 
 export function useSubjectColumns({
   openEditModal,
   handleDelete,
-  openGradesModal,
 }: Props) {
   const columns: ColumnType<Subject>[] = [
     {
@@ -28,7 +25,7 @@ export function useSubjectColumns({
       title: "Rasm",
       dataIndex: "avatar",
       width: 70,
-      responsive: ["md"] as unknown as Breakpoint[],
+      responsive: ["md"],
       render: () => (
         <Avatar
           src="/subjects-icon.png"
@@ -41,30 +38,21 @@ export function useSubjectColumns({
       title: "Fan nomi",
       dataIndex: "title",
       key: "title",
-      responsive: ["xs", "sm", "md", "lg"] as unknown as Breakpoint[],
-      render: (text: string, record: Subject) => (
-        <Link href={`/admin/subjects/${record.id}`}>
-          <span className="font-medium hover:underline">{text}</span>
-        </Link>
+      render: (text: string) => (
+        <span className="font-medium text-blue-600">{text}</span>
       ),
     },
     {
       title: "Darajalar",
       key: "grades",
-      responsive: ["sm", "md"] as unknown as Breakpoint[],
       render: (_: any, record: Subject) =>
         record.grades.length > 0 ? (
-          <div style={{ maxWidth: 250, overflowX: "auto" }}>
-            <Space size={[4, 4]} wrap={false}>
-              {record.grades.map((g) => (
-                <Link
-                  key={g.id}
-                  href={`/admin/subjects/${record.id}/levels/${g.id}/tests`}
-                >
-                  <Tag color="blue">{g.title}</Tag>
-                </Link>
-              ))}
-            </Space>
+          <div className="flex flex-wrap gap-2 max-w-[250px]">
+            {record.grades.map((g) => (
+              <Tag key={g.id} color="blue">
+                {g.title}
+              </Tag>
+            ))}
           </div>
         ) : (
           <Tag color="default">Mavjud emas</Tag>
@@ -74,7 +62,7 @@ export function useSubjectColumns({
       title: "Status",
       dataIndex: "is_active",
       key: "status",
-      responsive: ["md", "lg"] as unknown as Breakpoint[],
+      responsive: ["md", "lg"],
       render: (is_active: boolean) =>
         is_active ? (
           <Tag color="green">Active</Tag>
@@ -85,23 +73,30 @@ export function useSubjectColumns({
     {
       title: "Amallar",
       key: "actions",
-      responsive: ["xs", "sm", "md", "lg"] as unknown as Breakpoint[],
+      responsive: ["xs", "sm", "md", "lg"],
       render: (_: any, record: Subject) => (
         <Space>
-          <Button size="small" type="primary" onClick={() => openEditModal(record)}>
-            Tahrirlash
-          </Button>
-          <Popconfirm
-            title="Fanni o‘chirishni tasdiqlang"
-            okText="Ha"
-            cancelText="Yo‘q"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Button size="small" danger>
-              O‘chirish
-            </Button>
-          </Popconfirm>
-        </Space>
+  <Button
+    size="small"
+    type="primary"
+    icon={<Edit size={16} />}
+    onClick={() => openEditModal(record)}
+  >
+    Tahrirlash
+  </Button>
+
+  <Popconfirm
+    title="Fanni o‘chirishni tasdiqlang"
+    okText="Ha"
+    cancelText="Yo‘q"
+    onConfirm={() => handleDelete(record.id)}
+  >
+    <Button size="small" danger icon={<Trash2 size={16} />}>
+      O‘chirish
+    </Button>
+  </Popconfirm>
+</Space>
+
       ),
     },
   ];

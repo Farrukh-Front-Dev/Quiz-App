@@ -12,6 +12,7 @@ import {
 } from "@/store/slices/usersSlice";
 import { Table, Button, Modal, Form, Input, Spin, Alert } from "antd";
 import { useUserColumns } from "@/app/admin/users/useUserColumns";
+import { FaUsers } from "react-icons/fa";
 
 export default function UsersDashboard() {
   const dispatch = useDispatch<AppDispatch>();
@@ -103,7 +104,7 @@ export default function UsersDashboard() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">👥 Users boshqaruvi</h1>
+        <h1 className="text-2xl font-bold">{<FaUsers />} Users boshqaruvi</h1>
         <Button type="primary" onClick={handleCreate}>
           ➕ Yangi user qo‘shish
         </Button>

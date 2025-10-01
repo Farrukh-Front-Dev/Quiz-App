@@ -25,25 +25,14 @@ const initialState: GradeState = {
   error: null,
 };
 
-// 🔹 Grades olish
-export const fetchGrades = createAsyncThunk("grades/fetch", async () => {
-  const res = await api.get("/grades");
-  return res.data.data as Grade[];
-});
-
-// 🔹 Grade qo‘shish
 // 🔹 Grade qo‘shish
 export const createGrade = createAsyncThunk(
   "grades/create",
   async (payload: { title: string; subjectId: string }) => {
-    console.log("📤 createGrade payload:", payload);
-
     const res = await api.post("/grades", {
       title: payload.title,
-      subjectId: payload.subjectId,  // ✅ backend kutyapti shu formatni
+      subjectId: payload.subjectId,
     });
-
-    console.log("📥 createGrade response:", res.data);
     return res.data.data as Grade;
   }
 );
@@ -54,13 +43,11 @@ export const updateGrade = createAsyncThunk(
   async (payload: { id: string; title: string; subjectId: string }) => {
     const res = await api.put(`/grades/${payload.id}`, {
       title: payload.title,
-      subjectId: payload.subjectId,  // ✅ faqat ID yuboramiz
+      subjectId: payload.subjectId,
     });
-
     return res.data.data as Grade;
   }
 );
-
 
 // 🔹 Grade o‘chirish
 export const deleteGrade = createAsyncThunk(
@@ -77,18 +64,6 @@ const gradesSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchGrades.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchGrades.fulfilled, (state, action: PayloadAction<Grade[]>) => {
-        state.loading = false;
-        state.items = action.payload;
-      })
-      .addCase(fetchGrades.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || "Grades yuklanmadi!";
-      })
       .addCase(createGrade.fulfilled, (state, action: PayloadAction<Grade>) => {
         state.items.push(action.payload);
       })

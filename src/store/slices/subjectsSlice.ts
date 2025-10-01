@@ -28,12 +28,12 @@ const initialState: SubjectsState = {
 
 // ================= API THUNK =================
 
-// 🔹 Barcha fanlarni yuklash
+// 🔹 Barcha fanlarni yuklash (grades ham ichida keladi)
 export const loadSubjects = createAsyncThunk<Subject[]>(
   "subjects/load",
   async () => {
     const res = await api.get("/subjects");
-    return res.data.data;
+    return res.data.data as Subject[];
   }
 );
 
@@ -42,7 +42,7 @@ export const searchSubjectsByTitle = createAsyncThunk<Subject[], string>(
   "subjects/search",
   async (query) => {
     const res = await api.get(`/subjects/title/${encodeURIComponent(query)}`);
-    return res.data.data;
+    return res.data.data as Subject[];
   }
 );
 
@@ -51,7 +51,7 @@ export const addSubject = createAsyncThunk<Subject, { title: string }>(
   "subjects/add",
   async ({ title }) => {
     const res = await api.post("/subjects", { title });
-    return res.data;
+    return res.data.data as Subject;
   }
 );
 
@@ -61,7 +61,7 @@ export const editSubject = createAsyncThunk<
   { id: string; title: string }
 >("subjects/edit", async ({ id, title }) => {
   const res = await api.put(`/subjects/${id}`, { title });
-  return res.data;
+  return res.data.data as Subject;
 });
 
 // 🔹 Fan o‘chirish
