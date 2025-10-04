@@ -9,7 +9,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Quiz App",
   description: "Eng yaxshi test yechish platformasi",
-  icons: { icon: "/quiz-game.png" },
+  icons: { icon: "/quiz-icon.webp" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

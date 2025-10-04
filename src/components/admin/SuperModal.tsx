@@ -16,7 +16,7 @@ import {
 } from "antd";
 import { Subject } from "@/store/slices/subjectsSlice";
 import { Grade } from "@/store/slices/gradesSlice";
-import { Trash2, Edit, Plus, X } from "lucide-react";
+import { Trash2,  BookCheck, ShieldPlus, Edit, CircleCheckBig, Plus, X } from "lucide-react";
 
 const { Title } = Typography;
 
@@ -111,7 +111,7 @@ export default function SuperModal({
   return (
     <Modal
       open={open}
-      title="📘 Fan va darajalarni boshqarish"
+      title="Fan va darajalarni boshqarish"
       onCancel={onClose}
       footer={null}
       width={650}
@@ -133,7 +133,7 @@ export default function SuperModal({
         </Form.Item>
 
         <Button type="primary" htmlType="submit" loading={loading} block>
-          💾 Fanni saqlash
+          <CircleCheckBig/> Fanni saqlash
         </Button>
       </Form>
 
@@ -141,7 +141,7 @@ export default function SuperModal({
 
       {/* DARAJALAR */}
       <div>
-        <Title level={5}>📚 Darajalar</Title>
+        <Title className="flex justify-center items-center" level={5}><ShieldPlus className="text-green-600"/> Darajalar</Title>
 
         <List
           bordered
