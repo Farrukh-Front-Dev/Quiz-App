@@ -23,7 +23,7 @@ export default function UsersDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchText, setSearchText] = useState("");
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(8);
   const [form] = Form.useForm();
 
   // 📡 Fetch users
@@ -31,15 +31,24 @@ export default function UsersDashboard() {
     dispatch(fetchUsers());
   }, [dispatch]);
 
-  // 🔄 Responsive pageSize
+  // 🔄 Page size — noutbuk va katta ekranlar uchun optimallashtirilgan
   useEffect(() => {
     const updatePageSize = () => {
-      if (window.innerWidth >= 1600) setPageSize(12);
-      else if (window.innerWidth >= 1200) setPageSize(10);
-      else if (window.innerWidth >= 992) setPageSize(8);
-      else if (window.innerWidth >= 768) setPageSize(6);
-      else setPageSize(4);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      let size = 6;
+
+      if (width >= 1700 && height >= 800) size = 12; // katta monitorlar
+      else if (width >= 1366 && height >= 700) size = 10; // odatiy noutbuklar (Full HD)
+      else if (width >= 1100 && height >= 650) size = 8; // o‘rtacha noutbuklar
+      else if (width >= 900) size = 6; // kichik noutbuk
+      else size = 4; // planshet / telefon
+
+      console.log("📏 width:", width, "height:", height, "=> pageSize:", size);
+      setPageSize(size);
     };
+
     updatePageSize();
     window.addEventListener("resize", updatePageSize);
     return () => window.removeEventListener("resize", updatePageSize);
@@ -64,7 +73,7 @@ export default function UsersDashboard() {
     );
   }, [users, debouncedSearch]);
 
-  // Handlers
+  // ✏️ Handlers
   const handleCreate = useCallback(() => {
     setEditingUser(null);
     form.resetFields();
@@ -101,16 +110,26 @@ export default function UsersDashboard() {
   // 📊 Columns
   const columns = useUserColumns({ onEdit: handleEdit, onDelete: handleDelete });
 
+  // ✅ Pagination config (useMemo bilan)
+  const paginationConfig = useMemo(
+    () => ({
+      pageSize,
+      showSizeChanger: false,
+    }),
+    [pageSize]
+  );
+
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-[1600px] mx-auto">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">{<FaUsers />} Users boshqaruvi</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <FaUsers /> Users boshqaruvi
+        </h1>
         <Button type="primary" onClick={handleCreate}>
           ➕ Yangi user qo‘shish
         </Button>
       </div>
 
-      {/* 🔍 Search bar */}
       <Input.Search
         placeholder="Ism, familiya yoki telefon bo‘yicha izlash..."
         allowClear
@@ -119,17 +138,23 @@ export default function UsersDashboard() {
         style={{ maxWidth: 400, marginBottom: 16 }}
       />
 
-      {/* Loader va xatolik */}
-      {loading && <Spin tip="Yuklanmoqda..." className="mb-4" />}
+      {loading && (
+        <div className="flex justify-center mb-4">
+          <Spin tip="Yuklanmoqda..." />
+        </div>
+      )}
       {error && <Alert type="error" message={error} className="mb-4" />}
 
-      {/* Jadval */}
-      <Table
-        dataSource={filteredUsers}
-        rowKey="id"
-        pagination={{ pageSize, showSizeChanger: false }}
-        columns={columns}
-      />
+      {/* Jadval konteyneri */}
+      <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-100">
+        <Table
+          dataSource={filteredUsers}
+          rowKey="id"
+          pagination={paginationConfig}
+          columns={columns}
+          scroll={{ x: "max-content" }} // faqat ustunlar sig‘masa scroll chiqadi
+        />
+      </div>
 
       {/* Modal */}
       <Modal
@@ -144,13 +169,25 @@ export default function UsersDashboard() {
         cancelText="Bekor qilish"
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="Ism" rules={[{ required: true, message: "Ism kerak!" }]}>
+          <Form.Item
+            name="name"
+            label="Ism"
+            rules={[{ required: true, message: "Ism kerak!" }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="surname" label="Familiya" rules={[{ required: true }]}>
+          <Form.Item
+            name="surname"
+            label="Familiya"
+            rules={[{ required: true, message: "Familiya kerak!" }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="phone" label="Telefon" rules={[{ required: true }]}>
+          <Form.Item
+            name="phone"
+            label="Telefon"
+            rules={[{ required: true, message: "Telefon kerak!" }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="izoh" label="Izoh">

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
-
 import {
   fetchQuestions,
   createQuestion,
@@ -11,32 +10,24 @@ import {
   deleteQuestion,
   Question,
 } from "@/store/slices/questionsSlice";
-import { loadSubjects, Subject } from "@/store/slices/subjectsSlice";
+import { loadSubjects } from "@/store/slices/subjectsSlice";
 
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
 import {
   Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
+  Select,
+  Button,
+  Card,
+  Pagination,
+  Spin,
+  Space,
+  message,
+} from "antd";
 
 import QuestionFormModal from "./QuestionFormModal";
-import InfinityLoader from "@/components/admin/InfinityLoader";
+import { useQuestionColumns } from "./useQuestionsColumns";
 
 export default function QuestionsDashboard() {
   const dispatch = useDispatch<AppDispatch>();
-
-  // Redux states
   const { items: questions, loading } = useSelector(
     (state: RootState) => state.questions
   );
@@ -44,46 +35,63 @@ export default function QuestionsDashboard() {
     (state: RootState) => state.subjects
   );
 
-  // Local states
   const [modalOpen, setModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | undefined>();
   const [selectedGrade, setSelectedGrade] = useState<string | undefined>();
 
-  // 🔹 Initial load
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  
+
+  // 🔹 Load initial data
   useEffect(() => {
     dispatch(loadSubjects());
-    dispatch(fetchQuestions({})); // barcha savollarni olish
+    dispatch(fetchQuestions({}));
   }, [dispatch]);
 
   // 🔹 Filter trigger
- // 🔹 Filter trigger
- useEffect(() => {
-  dispatch(fetchQuestions({
-    subject: selectedSubject,
-    grade: selectedGrade,
-  }));
-}, [dispatch, selectedSubject, selectedGrade]);
+  useEffect(() => {
+    dispatch(fetchQuestions({ subject: selectedSubject, grade: selectedGrade }));
+    setCurrentPage(1);
+  }, [dispatch, selectedSubject, selectedGrade]);
 
+  // 🔹 Dynamic pageSize
+  useEffect(() => {
+    const updatePageSize = () => {
+      const width = window.innerWidth;
+      if (width >= 1600) setPageSize(12);
+      else if (width >= 1200) setPageSize(10);
+      else if (width >= 992) setPageSize(8);
+      else if (width >= 768) setPageSize(6);
+      else setPageSize(4);
+    };
+    updatePageSize();
+    window.addEventListener("resize", updatePageSize);
+    return () => window.removeEventListener("resize", updatePageSize);
+  }, []);
 
+  // 🔹 Paginate
+  const paginatedQuestions = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return questions.slice(start, start + pageSize);
+  }, [questions, pageSize, currentPage]);
 
-  // 🔹 Modal open/close
+  // 🔹 Handlers
+  const openEditModal = (q: Question) => {
+    setEditingQuestion(q);
+    setModalOpen(true);
+  };
+
   const openAddModal = () => {
     setEditingQuestion(null);
     setModalOpen(true);
   };
 
-  const openEditModal = (question: Question) => {
-    setEditingQuestion(question);
-    setModalOpen(true);
-  };
-
-  // 🔹 Save (create/update)
   const handleSave = async (values: any) => {
     try {
-      // ✅ options mavjud bo‘lmasa, bo‘sh massiv qilib olamiz
       const options = Array.isArray(values.options) ? values.options : [];
-  
       const payload = {
         question: values.question,
         subjectId: values.subjectId,
@@ -94,152 +102,103 @@ export default function QuestionsDashboard() {
           is_correct: !!o.is_correct,
         })),
       };
-  
-      let res;
+
       if (editingQuestion) {
-        res = await dispatch(
-          updateQuestion({ id: editingQuestion.id, ...payload })
-        ).unwrap();
+        await dispatch(updateQuestion({ id: editingQuestion.id, ...payload })).unwrap();
+        message.success("Savol yangilandi ✅");
       } else {
-        res = await dispatch(createQuestion(payload)).unwrap();
+        await dispatch(createQuestion(payload)).unwrap();
+        message.success("Savol qo‘shildi ✅");
       }
-  
-      // 🔹 Modalni yopamiz
+
       setModalOpen(false);
-  
-      // 🔹 Yangi saqlangandan keyin qayta yuklaymiz
       dispatch(fetchQuestions({ subject: selectedSubject, grade: selectedGrade }));
-      return res;
     } catch (err) {
-      console.error("❌ Savol saqlashda xatolik:", err);
+      console.error(err);
+      message.error("Xatolik yuz berdi");
     }
   };
-  
 
-  // 🔹 Delete
   const handleDelete = async (id: string) => {
     try {
       await dispatch(deleteQuestion(id)).unwrap();
-    } catch (err) {
-      console.error("❌ Savol o‘chirishda xatolik:", err);
+      message.success("Savol o‘chirildi 🗑️");
+    } catch {
+      message.error("Savolni o‘chirishda xatolik yuz berdi");
     }
   };
 
-  // 🔹 Loader state
-  if (loading || subjectsLoading) {
+  // 🔹 Columns import
+  const columns = useQuestionColumns({
+  currentPage,
+  pageSize,
+  openEditModal, // nom mos keldi
+  handleDelete,  // nom mos keldi
+});
+
+
+  // 🔹 Loading state
+  if (loading || subjectsLoading)
     return (
-      <div className="flex justify-center py-10">
-        <InfinityLoader />
+      <div className="flex justify-center items-center h-[70vh]">
+        <Spin size="large" />
       </div>
     );
-  }
 
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-2xl font-bold">❓ Savollar boshqaruvi</h1>
 
       {/* 🔹 Filterlar */}
-      <div className="flex flex-wrap gap-4">
-        {/* Subject filter */}
+      <Space wrap>
         <Select
+          placeholder="Fan tanlang"
           value={selectedSubject}
-          onValueChange={(val) => {
+          onChange={(val) => {
             setSelectedSubject(val);
-            setSelectedGrade(undefined); // reset grade when subject changes
+            setSelectedGrade(undefined);
           }}
-        >
-          <SelectTrigger className="w-[200px]">
-            {selectedSubject
-              ? subjects.find((s) => s.id === selectedSubject)?.title
-              : "Fan tanlang"}
-          </SelectTrigger>
-          <SelectContent>
-            {subjects.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Grade filter */}
+          style={{ width: 200 }}
+          options={subjects.map((s) => ({ value: s.id, label: s.title }))}
+        />
         <Select
+          placeholder="Daraja tanlang"
           value={selectedGrade}
-          onValueChange={setSelectedGrade}
           disabled={!selectedSubject}
-        >
-          <SelectTrigger className="w-[200px]">
-            {selectedGrade
-              ? subjects
-                  .find((s) => s.id === selectedSubject)
-                  ?.grades.find((g) => g.id === selectedGrade)?.title
-              : "Daraja tanlang"}
-          </SelectTrigger>
-          <SelectContent>
-            {subjects
+          onChange={(val) => setSelectedGrade(val)}
+          style={{ width: 200 }}
+          options={
+            subjects
               .find((s) => s.id === selectedSubject)
-              ?.grades.map((g) => (
-                <SelectItem key={g.id} value={g.id}>
-                  {g.title}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+              ?.grades.map((g) => ({ value: g.id, label: g.title })) || []
+          }
+        />
+        <Button type="primary" onClick={openAddModal}>➕ Savol qo‘shish</Button>
+      </Space>
 
-        <Button onClick={openAddModal}>➕ Savol qo‘shish</Button>
-      </div>
-
-      {/* 🔹 Jadval */}
-      <Card className="p-4 overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Savol</TableHead>
-              <TableHead>A</TableHead>
-              <TableHead>B</TableHead>
-              <TableHead>C</TableHead>
-              <TableHead>Javob</TableHead>
-              <TableHead>Amallar</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {questions.map((q, idx) => (
-              <TableRow key={q.id}>
-                <TableCell>{idx + 1}</TableCell>
-                <TableCell className="max-w-[250px] truncate">
-                  {q.question || "-"}
-                </TableCell>
-                <TableCell>{q.options?.[0]?.variant || "-"}</TableCell>
-                <TableCell>{q.options?.[1]?.variant || "-"}</TableCell>
-                <TableCell>{q.options?.[2]?.variant || "-"}</TableCell>
-                <TableCell className="font-semibold text-green-600">
-                  {q.options?.find((o) => o.is_correct)?.variant || "-"}
-                </TableCell>
-                <TableCell className="flex gap-2">
-                  <Button size="sm" onClick={() => openEditModal(q)}>
-                    ✏️ Tahrirlash
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDelete(q.id)}
-                  >
-                    🗑 O‘chirish
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {questions.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-6 text-gray-500">
-                  Hech qanday savol topilmadi
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+      {/* 🔹 Table */}
+      <Card style={{ overflowX: "auto" }}>
+        <Table
+          dataSource={paginatedQuestions}
+          columns={columns}
+          rowKey="id"
+          pagination={false}
+          bordered
+        />
       </Card>
+
+      {/* 🔹 Pagination */}
+      {questions.length > pageSize && (
+        <div className="flex justify-end pt-4">
+          <Pagination
+            current={currentPage}
+            total={questions.length}
+            pageSize={pageSize}
+            onChange={(page) => setCurrentPage(page)}
+            showSizeChanger={false}
+          />
+        </div>
+      )}
 
       {/* 🔹 Modal */}
       <QuestionFormModal
