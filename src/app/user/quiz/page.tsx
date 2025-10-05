@@ -54,16 +54,15 @@ export default function QuizPage() {
     if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
   };
 
-  const handleSubmit = () => {
-    router.push({
-      pathname: "/user/result",
-      query: {
-        subject: subjectId,
-        grade: gradeId,
-        answers: JSON.stringify(answers),
-      },
-    });
-  };
+ const handleSubmit = () => {
+  const params = new URLSearchParams();
+  if (subjectId) params.append("subject", subjectId);
+  if (gradeId) params.append("grade", gradeId);
+  params.append("answers", JSON.stringify(answers));
+
+  router.push(`/user/result?${params.toString()}`);
+};
+
 
   if (loading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
 
