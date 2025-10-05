@@ -6,6 +6,7 @@ import gradesReducer from "./slices/gradesSlice";
 import usersReducer from "./slices/usersSlice";
 import questionsReducer from "./slices/questionsSlice";
 import optionsReducer from "./slices/optionsSlice";
+import resultsReducer from "./slices/resultsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -14,9 +15,11 @@ export const store = configureStore({
     grades: gradesReducer,
     users: usersReducer,
     questions: questionsReducer,
-    options: optionsReducer, // ✅ qo‘shilgan
+    options: optionsReducer,
+    results: resultsReducer, // 🔹 qo‘shildi
   },
 });
+
 
 // LocalStorage dan userni yuklash
 store.dispatch(loadFromStorage());
