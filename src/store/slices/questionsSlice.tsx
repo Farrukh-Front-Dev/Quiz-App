@@ -53,33 +53,40 @@ export const fetchQuestions = createAsyncThunk<
     limit: filters?.limit || 20,
   };
 
-  // ✅ To‘g‘rilangan joy
   if (filters?.subject) params.subject = filters.subject;
   if (filters?.grade) params.grade = filters.grade;
 
-  const res = await api.get("/subjects/with-test", { params });
+  console.log("📤 Fetching questions with params:", params);
+
+  const res = await api.get("/questions", { params });
+  console.log("📥 Raw response from API:", res.data);
 
   const responseData = res.data?.data;
 
+  if (!Array.isArray(responseData)) {
+    console.warn("⚠️ API data is not an array:", responseData);
+  }
+
+  const mapped = responseData.map((item: any) => ({
+    id: item.id,
+    question: item.question,
+    options: item.options || [],
+    grade: item.grade
+      ? { id: item.grade.id, title: item.grade.title }
+      : undefined,
+    subject: item.subject
+      ? { id: item.subject.id, title: item.subject.title, grades: [] }
+      : undefined,
+  }));
+
+  console.log("✅ Mapped questions:", mapped);
+
   return {
-    data: (responseData?.items || []).map((item: any) => ({
-      id: item.id,
-      question: item.question,
-      options: item.options || [],
-      grade: item.grade
-        ? { id: item.grade.id, title: item.grade.title }
-        : undefined,
-      subject: item.grade?.subject
-        ? {
-            id: item.grade.subject.id,
-            title: item.grade.subject.title,
-            grades: [],
-          }
-        : undefined,
-    })),
-    total: responseData?.total || 0,
+    data: mapped,
+    total: mapped.length,
   };
 });
+
 
 
 // 🔹 Yangi savol qo‘shish

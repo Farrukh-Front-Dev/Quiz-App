@@ -50,7 +50,7 @@ export default function QuizPage() {
     if (currentIndex < questions.length - 1) setCurrentIndex(prev => prev + 1);
   };
 
-  const handlePrev = () => {
+  const handlePrev = () => {  
     if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
   };
 

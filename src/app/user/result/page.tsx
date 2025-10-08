@@ -1,65 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "@/store";
-import { fetchUserResults, Result } from "@/store/slices/resultsSlice";
-import { Card, Row, Col, Spin, Typography, Progress, message } from "antd";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Card, Spin, message } from "antd";
 
-const { Title, Text } = Typography;
-
-export default function UserResultPage() {
-  const dispatch = useDispatch<AppDispatch>();
+export default function ResultPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const userId = searchParams.get("userId"); // Agar login orqali olishni xohlasak, redux authSlice’dan ham olish mumkin
-  const { items: results, loading, error } = useSelector(
-    (state: RootState) => state.results
-  );
+  const subjectId = searchParams.get("subject");
+  const gradeId = searchParams.get("grade");
+  const answers = searchParams.get("answers");
+
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) {
-      message.error("Foydalanuvchi aniqlanmadi!");
+    if (!subjectId || !gradeId || !answers) {
+      message.error("Ma'lumotlar to‘liq emas!");
       router.push("/user/select");
       return;
     }
-    dispatch(fetchUserResults(userId));
-  }, [dispatch, userId, router]);
 
-  if (loading)
-    return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
+    console.log("📤 Yuborilayotgan ma'lumot:", {
+      subjectId,
+      gradeId,
+      answers: JSON.parse(answers),
+    });
 
-  if (error) return <Text type="danger">{error}</Text>;
+    // TODO: bu yerda backendga request ketadi
+    setLoading(false);
+    setResult({ correct: 3, total: 5, percentage: 60 }); // test uchun
+  }, [subjectId, gradeId, answers, router]);
 
-  if (!results.length) return <Text>Hali test topshirmadingiz.</Text>;
+  if (loading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
+
+  if (!result) return <p>Natija topilmadi.</p>;
 
   return (
-    <div style={{ maxWidth: 900, margin: "24px auto", padding: "0 12px" }}>
-      <Title level={2} style={{ textAlign: "center", marginBottom: 24 }}>
-        Test Natijalaringiz
-      </Title>
-
-      <Row gutter={[16, 16]}>
-        {results.map((result: Result) => {
-          const percentage = Math.round((result.result / result.grade.questionCount) * 100);
-          return (
-            <Col xs={24} sm={12} lg={8} key={result.id}>
-              <Card
-                title={`${result.subject.title} - ${result.grade.title}`}
-                bordered
-                hoverable
-              >
-                <Text strong>Status:</Text> {result.status} <br />
-                <Text strong>To‘g‘ri javoblar:</Text> {result.result} / {result.grade.questionCount} <br />
-                <Text strong>Vaqt (sekund):</Text> {result.time} <br />
-                <Progress percent={percentage} status="active" />
-              </Card>
-            </Col>
-          );
-        })}
-      </Row>
-    </div>
+    <Card style={{ maxWidth: 600, margin: "40px auto", padding: 24, textAlign: "center" }}>
+      <h2>Test yakunlandi 🎯</h2>
+      <p><b>To‘g‘ri javoblar:</b> {result.correct} / {result.total}</p>
+      <p><b>Foiz:</b> {result.percentage}%</p>
+    </Card>
   );
 }
