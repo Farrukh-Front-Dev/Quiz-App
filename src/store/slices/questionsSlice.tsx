@@ -47,47 +47,50 @@ const initialState: QuestionsState = {
 export const fetchQuestions = createAsyncThunk<
   { data: Question[]; total: number },
   { subject?: string; grade?: string; page?: number; limit?: number } | undefined
->("questions/fetch", async (filters) => {
-  const params: Record<string, string | number> = {
-    page: filters?.page || 1,
-    limit: filters?.limit || 20,
-  };
+>(
+  "questions/fetch",
+  async (filters) => {
+    const params: Record<string, string | number> = {
+      page: filters?.page || 1,
+      limit: filters?.limit || 20,
+    };
 
-  if (filters?.subject) params.subject = filters.subject;
-  if (filters?.grade) params.grade = filters.grade;
+    if (filters?.subject) params.subject = filters.subject;
+    if (filters?.grade) params.grade = filters.grade;
 
-  console.log("📤 Fetching questions with params:", params);
+    console.log("📤 Fetching questions with params:", params);
 
-  const res = await api.get("/questions", { params });
-  console.log("📥 Raw response from API:", res.data);
+    // ✅ API endpoint to'g'ri ishlashi uchun
+    const res = await api.get("/subjects/with-test", { params });
+    console.log("📥 Raw response from API:", res.data);
 
-  const responseData = res.data?.data;
+    const responseData = res.data?.data;
 
-  if (!Array.isArray(responseData)) {
-    console.warn("⚠️ API data is not an array:", responseData);
+    if (!responseData || !Array.isArray(responseData.items)) {
+      console.warn("⚠️ API data is not an array:", responseData);
+      return { data: [], total: 0 };
+    }
+
+    const mapped = responseData.items.map((item: any) => ({
+      id: item.id,
+      question: item.question,
+      options: item.options || [],
+      grade: item.grade
+        ? { id: item.grade.id, title: item.grade.title }
+        : undefined,
+      subject: item.grade?.subject
+        ? { id: item.grade.subject.id, title: item.grade.subject.title, grades: [] }
+        : undefined,
+    }));
+
+    console.log("✅ Mapped questions:", mapped);
+
+    return {
+      data: mapped,
+      total: responseData.total,
+    };
   }
-
-  const mapped = responseData.map((item: any) => ({
-    id: item.id,
-    question: item.question,
-    options: item.options || [],
-    grade: item.grade
-      ? { id: item.grade.id, title: item.grade.title }
-      : undefined,
-    subject: item.subject
-      ? { id: item.subject.id, title: item.subject.title, grades: [] }
-      : undefined,
-  }));
-
-  console.log("✅ Mapped questions:", mapped);
-
-  return {
-    data: mapped,
-    total: mapped.length,
-  };
-});
-
-
+);
 
 // 🔹 Yangi savol qo‘shish
 export const createQuestion = createAsyncThunk<

@@ -43,7 +43,6 @@ export default function QuestionsDashboard() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
-  
 
   // 🔹 Load initial data
   useEffect(() => {
@@ -128,14 +127,13 @@ export default function QuestionsDashboard() {
     }
   };
 
-  // 🔹 Columns import
+  // 🔹 Columns
   const columns = useQuestionColumns({
-  currentPage,
-  pageSize,
-  openEditModal, // nom mos keldi
-  handleDelete,  // nom mos keldi
-});
-
+    currentPage,
+    pageSize,
+    openEditModal,
+    handleDelete,
+  });
 
   // 🔹 Loading state
   if (loading || subjectsLoading)
