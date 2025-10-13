@@ -20,7 +20,7 @@ import { RootState, AppDispatch } from "@/store";
 import { Table, Button, Typography, notification, Input } from "antd";
 import { useSubjectColumns } from "@/app/admin/subjects/useSubjectColumns";
 import SuperModal from "@/components/admin/SuperModal";
-import { BookOpenText, Plus } from "lucide-react"; // ✅ Lucide icons
+import { BookOpenText, Plus } from "lucide-react";
 
 const { Title } = Typography;
 
@@ -52,11 +52,12 @@ export default function SubjectsDashboard() {
 
   const { notifySuccess, notifyError } = useNotify();
 
+  // === FANNI YUKLASH ===
   useEffect(() => {
     dispatch(loadSubjects());
   }, [dispatch]);
 
-  // responsive page size
+  // === RESPONSIVE PAGINATION ===
   useEffect(() => {
     const updatePageSize = () => {
       if (window.innerWidth >= 1600) setPageSize(12);
@@ -70,7 +71,7 @@ export default function SubjectsDashboard() {
     return () => window.removeEventListener("resize", updatePageSize);
   }, []);
 
-  // ====== SUBJECT CRUD ======
+  // ===== MODAL FUNKSIYALAR =====
   const openAddModal = () => {
     setEditingSubject(null);
     setModalOpen(true);
@@ -81,10 +82,10 @@ export default function SubjectsDashboard() {
     setModalOpen(true);
   };
 
+  // ===== FAN CRUD =====
   const handleSaveSubject = async (values: { id?: string; title: string }) => {
     try {
       setSaving(true);
-
       if (editingSubject) {
         await dispatch(
           editSubject({ id: editingSubject.id, title: values.title })
@@ -94,7 +95,6 @@ export default function SubjectsDashboard() {
         await dispatch(addSubject({ title: values.title })).unwrap();
         notifySuccess("Fan qo‘shildi!");
       }
-
       setModalOpen(false);
       setEditingSubject(null);
     } catch (err: any) {
@@ -113,6 +113,7 @@ export default function SubjectsDashboard() {
     }
   };
 
+  // ===== SEARCH =====
   const handleSearch = (value: string) => {
     setSearchQuery(value);
     if (value.trim()) {
@@ -122,21 +123,27 @@ export default function SubjectsDashboard() {
     }
   };
 
-  // ====== GRADE CRUD (parent state bilan sync) ======
-  // SubjectsDashboard.tsx
-
+  // ===== GRADE CRUD =====
   const handleAddGrade = async (payload: {
     title: string;
     subjectId: string;
   }): Promise<Grade> => {
     try {
-      const newGrade = await dispatch(createGrade(payload)).unwrap();
-      // parent state bilan sync
+      // vaqtincha default qiymatlar qo‘shamiz
+      const newGrade = await dispatch(
+        createGrade({
+          ...payload,
+          time: 30, // ⏱ 30 daqiqa
+          questionCount: 15, // ❓ 15 ta savol
+        } as any)
+      ).unwrap();
+
+      // parent subjectga sync
       setEditingSubject((prev) =>
         prev ? { ...prev, grades: [...prev.grades, newGrade] } : prev
       );
       notifySuccess("Daraja qo‘shildi!");
-      return newGrade; // ✅ Grade qaytaryapmiz
+      return newGrade;
     } catch (err: any) {
       notifyError(err?.message || "Xatolik!");
       throw err;
@@ -149,7 +156,14 @@ export default function SubjectsDashboard() {
     subjectId: string;
   }): Promise<Grade> => {
     try {
-      const updatedGrade = await dispatch(updateGrade(payload)).unwrap();
+      const updatedGrade = await dispatch(
+        updateGrade({
+          ...payload,
+          time: 30,
+          questionCount: 15,
+        } as any)
+      ).unwrap();
+
       setEditingSubject((prev) => {
         if (!prev) return prev;
         return {
@@ -160,18 +174,16 @@ export default function SubjectsDashboard() {
         };
       });
       notifySuccess("Daraja o‘zgartirildi!");
-      return updatedGrade; // ✅ Grade qaytaryapmiz
+      return updatedGrade;
     } catch (err: any) {
       notifyError(err?.message || "Xatolik!");
       throw err;
     }
   };
 
-  // SubjectsDashboard.tsx
   const handleDeleteGrade = async (id: string): Promise<void> => {
     try {
       await dispatch(deleteGrade(id)).unwrap();
-      // parent state bilan sync
       setEditingSubject((prev) =>
         prev
           ? { ...prev, grades: prev.grades.filter((g) => g.id !== id) }
@@ -184,6 +196,7 @@ export default function SubjectsDashboard() {
     }
   };
 
+  // ===== COLUMNS =====
   const columns = useSubjectColumns({
     openEditModal,
     handleDelete: handleDeleteSubject,
@@ -192,10 +205,11 @@ export default function SubjectsDashboard() {
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm">
       <div className="flex justify-between items-center mb-4">
-        <Title className="flex justify-between items-center gap-2" level={3}>
+        <Title className="flex items-center gap-2" level={3}>
           <BookOpenText className="text-green-600" />
           Fanlar boshqaruvi
         </Title>
+
         <div className="flex gap-2">
           <Input.Search
             placeholder="Fanlarni izlash..."

@@ -1,4 +1,3 @@
-// SuperModal.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -13,10 +12,20 @@ import {
   Popconfirm,
   Divider,
   notification,
+  InputNumber,
 } from "antd";
 import { Subject } from "@/store/slices/subjectsSlice";
 import { Grade } from "@/store/slices/gradesSlice";
-import { Trash2,  BookCheck, ShieldPlus, Edit, CircleCheckBig, Plus, X } from "lucide-react";
+import {
+  Trash2,
+  ShieldPlus,
+  Edit,
+  CircleCheckBig,
+  Plus,
+  X,
+  Timer,
+  ListChecks,
+} from "lucide-react";
 
 const { Title } = Typography;
 
@@ -37,8 +46,19 @@ interface SuperModalProps {
   loading: boolean;
   onClose: () => void;
   onSaveSubject: (values: { id?: string; title: string }) => Promise<void>;
-  onAddGrade: (payload: { title: string; subjectId: string }) => Promise<Grade>;
-  onUpdateGrade: (payload: { id: string; title: string; subjectId: string }) => Promise<Grade>;
+  onAddGrade: (payload: {
+    title: string;
+    subjectId: string;
+    time: number;
+    questionCount: number;
+  }) => Promise<Grade>;
+  onUpdateGrade: (payload: {
+    id: string;
+    title: string;
+    subjectId: string;
+    time: number;
+    questionCount: number;
+  }) => Promise<Grade>;
   onDeleteGrade: (id: string) => Promise<void>;
 }
 
@@ -55,7 +75,9 @@ export default function SuperModal({
   const [form] = Form.useForm();
   const [gradeForm] = Form.useForm();
   const [grades, setGrades] = useState<Grade[]>(subject?.grades || []);
-  const [editingGradeId, setEditingGradeId] = useState<string | "new" | null>(null);
+  const [editingGradeId, setEditingGradeId] = useState<string | "new" | null>(
+    null
+  );
 
   const { notifySuccess, notifyError } = useNotify();
 
@@ -64,44 +86,72 @@ export default function SuperModal({
     setGrades(subject?.grades || []);
   }, [subject]);
 
+  // === Fan saqlash ===
   const handleSaveSubject = async (values: { id?: string; title: string }) => {
     try {
       await onSaveSubject(values);
-      notifySuccess(values.id ? "Fan muvaffaqiyatli tahrirlandi!" : "Fan muvaffaqiyatli qo‘shildi!");
+      notifySuccess(
+        values.id
+          ? "Fan muvaffaqiyatli tahrirlandi!"
+          : "Fan muvaffaqiyatli qo‘shildi!"
+      );
       form.resetFields();
     } catch (err: any) {
       notifyError(err?.message || "Fan saqlashda xatolik!");
     }
   };
 
-  const handleAddGrade = async (title: string) => {
+  // === Daraja qo‘shish ===
+  const handleAddGrade = async (values: {
+    title: string;
+    time: number;
+    questionCount: number;
+  }) => {
     if (!subject) return;
     try {
-      const newGrade = await onAddGrade({ title, subjectId: subject.id });
-      setGrades(prev => [...prev, newGrade]);
+      const newGrade = await onAddGrade({
+        title: values.title,
+        subjectId: subject.id,
+        time: values.time,
+        questionCount: values.questionCount,
+      });
+      setGrades((prev) => [...prev, newGrade]);
       setEditingGradeId(null);
+      gradeForm.resetFields();
       notifySuccess("Daraja qo‘shildi!");
     } catch (err: any) {
       notifyError(err?.message || "Daraja qo‘shishda xatolik!");
     }
   };
 
-  const handleUpdateGrade = async (id: string, title: string) => {
+  // === Daraja yangilash ===
+  const handleUpdateGrade = async (
+    id: string,
+    values: { title: string; time: number; questionCount: number }
+  ) => {
     if (!subject) return;
     try {
-      const updatedGrade = await onUpdateGrade({ id, title, subjectId: subject.id });
-      setGrades(prev => prev.map(g => g.id === id ? updatedGrade : g));
+      const updatedGrade = await onUpdateGrade({
+        id,
+        subjectId: subject.id,
+        ...values,
+      });
+      setGrades((prev) =>
+        prev.map((g) => (g.id === id ? updatedGrade : g))
+      );
       setEditingGradeId(null);
+      gradeForm.resetFields();
       notifySuccess("Daraja muvaffaqiyatli tahrirlandi!");
     } catch (err: any) {
       notifyError(err?.message || "Daraja tahrirlashda xatolik!");
     }
   };
 
+  // === Daraja o‘chirish ===
   const handleDeleteGrade = async (id: string) => {
     try {
       await onDeleteGrade(id);
-      setGrades(prev => prev.filter(g => g.id !== id));
+      setGrades((prev) => prev.filter((g) => g.id !== id));
       notifySuccess("Daraja o‘chirildi!");
     } catch (err: any) {
       notifyError(err?.message || "Daraja o‘chirishda xatolik!");
@@ -114,8 +164,8 @@ export default function SuperModal({
       title="Fan va darajalarni boshqarish"
       onCancel={onClose}
       footer={null}
-      width={650}
-      destroyOnHidden
+      width={700}
+      destroyOnClose
     >
       {/* FAN NOMI */}
       <Form
@@ -133,7 +183,7 @@ export default function SuperModal({
         </Form.Item>
 
         <Button type="primary" htmlType="submit" loading={loading} block>
-          <CircleCheckBig/> Fanni saqlash
+          <CircleCheckBig /> Fanni saqlash
         </Button>
       </Form>
 
@@ -141,7 +191,9 @@ export default function SuperModal({
 
       {/* DARAJALAR */}
       <div>
-        <Title className="flex justify-center items-center" level={5}><ShieldPlus className="text-green-600"/> Darajalar</Title>
+        <Title className="flex justify-center items-center" level={5}>
+          <ShieldPlus className="text-green-600 mr-2" /> Darajalar
+        </Title>
 
         <List
           bordered
@@ -156,7 +208,11 @@ export default function SuperModal({
                   size="small"
                   icon={<Edit size={14} />}
                   onClick={() => {
-                    gradeForm.setFieldsValue({ title: grade.title });
+                    gradeForm.setFieldsValue({
+                      title: grade.title,
+                      time: grade.time,
+                      questionCount: grade.questionCount,
+                    });
                     setEditingGradeId(grade.id);
                   }}
                 >
@@ -167,7 +223,12 @@ export default function SuperModal({
                   title="Darajani o‘chirasizmi?"
                   onConfirm={() => handleDeleteGrade(grade.id)}
                 >
-                  <Button size="small" danger type="link" icon={<Trash2 size={14} />}>
+                  <Button
+                    size="small"
+                    danger
+                    type="link"
+                    icon={<Trash2 size={14} />}
+                  >
                     O‘chirish
                   </Button>
                 </Popconfirm>,
@@ -176,21 +237,48 @@ export default function SuperModal({
               {editingGradeId === grade.id ? (
                 <Form
                   form={gradeForm}
-                  initialValues={{ title: grade.title }}
-                  onFinish={(values) => handleUpdateGrade(grade.id, values.title)}
+                  initialValues={{
+                    title: grade.title,
+                    time: grade.time,
+                    questionCount: grade.questionCount,
+                  }}
+                  onFinish={(values) => handleUpdateGrade(grade.id, values)}
                 >
                   <Space>
                     <Form.Item name="title" rules={[{ required: true }]}>
-                      <Input size="small" />
+                      <Input size="small" placeholder="Daraja nomi" />
+                    </Form.Item>
+                    <Form.Item name="time" rules={[{ required: true }]}>
+                      <InputNumber
+                        size="small"
+                        placeholder="Vaqt (daq.)"
+                        min={1}
+                        prefix={<Timer size={12} />}
+                      />
+                    </Form.Item>
+                    <Form.Item name="questionCount" rules={[{ required: true }]}>
+                      <InputNumber
+                        size="small"
+                        placeholder="Savollar soni"
+                        min={1}
+                        prefix={<ListChecks size={12} />}
+                      />
                     </Form.Item>
                     <Button htmlType="submit" size="small" type="primary">
                       💾
                     </Button>
-                    <Button size="small" onClick={() => setEditingGradeId(null)} icon={<X size={14} />}/>
+                    <Button
+                      size="small"
+                      onClick={() => setEditingGradeId(null)}
+                      icon={<X size={14} />}
+                    />
                   </Space>
                 </Form>
               ) : (
-                <span>{grade.title}</span>
+                <span>
+                  {grade.title} — ⏱ {grade.time} daq., ❓ {grade.questionCount} ta
+                  savol
+                </span>
               )}
             </List.Item>
           )}
@@ -198,22 +286,42 @@ export default function SuperModal({
 
         {/* YANGI DARAJA */}
         {editingGradeId === "new" ? (
-          <Form
-            form={gradeForm}
-            onFinish={(values) => handleAddGrade(values.title)}
-          >
-            <Space className="mt-2">
-              <Form.Item name="title" rules={[{ required: true }]}>
-                <Input size="small" placeholder="Daraja nomi" />
-              </Form.Item>
-              <Button htmlType="submit" size="small" type="primary" icon={<Plus size={14} />}/>
-              <Button size="small" onClick={() => setEditingGradeId(null)} icon={<X size={14} />}/>
-            </Space>
+          <Form form={gradeForm} onFinish={handleAddGrade} layout="inline">
+            <Form.Item
+              name="title"
+              rules={[{ required: true, message: "Daraja nomini kiriting" }]}
+            >
+              <Input size="small" placeholder="Daraja nomi" />
+            </Form.Item>
+            <Form.Item
+              name="time"
+              rules={[{ required: true, message: "Vaqtni kiriting" }]}
+            >
+              <InputNumber
+                size="small"
+                placeholder="Vaqt (daq.)"
+                min={1}
+                prefix={<Timer size={12} />}
+              />
+            </Form.Item>
+            <Form.Item
+              name="questionCount"
+              rules={[{ required: true, message: "Savollar sonini kiriting" }]}
+            >
+              <InputNumber
+                size="small"
+                placeholder="Savollar soni"
+                min={1}
+                prefix={<ListChecks size={12} />}
+              />
+            </Form.Item>
+            <Button htmlType="submit" size="small" type="primary" icon={<Plus size={14} />} />
+            <Button size="small" onClick={() => setEditingGradeId(null)} icon={<X size={14} />} />
           </Form>
         ) : (
           subject && (
             <Button
-              className="mt-2"
+              className="mt-3"
               onClick={() => {
                 gradeForm.resetFields();
                 setEditingGradeId("new");
