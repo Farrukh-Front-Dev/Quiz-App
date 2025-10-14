@@ -11,6 +11,10 @@ export interface Option {
 export interface Grade {
   id: string;
   title: string;
+  subject?: {
+    id: string;
+    title: string;
+  };
 }
 
 export interface Subject {
@@ -22,9 +26,10 @@ export interface Subject {
 export interface Question {
   id: string;
   question: string;
-  grade?: Grade;
-  subject?: Subject;
   options: Option[];
+  grade: Grade;
+  subject: Subject;
+  created_at?: string;
 }
 
 // --- STATE ---
@@ -33,6 +38,8 @@ interface QuestionsState {
   loading: boolean;
   error: string | null;
   total: number;
+  page: number;
+  limit: number;
 }
 
 const initialState: QuestionsState = {
@@ -40,93 +47,125 @@ const initialState: QuestionsState = {
   loading: false,
   error: null,
   total: 0,
+  page: 1,
+  limit: 10,
 };
 
 // --- THUNKS ---
 
 export const fetchQuestions = createAsyncThunk<
-  { data: Question[]; total: number },
-  { subject?: string; grade?: string; page?: number; limit?: number } | undefined
->(
-  "questions/fetch",
-  async (filters) => {
+  { data: Question[]; total: number; page: number; limit: number },
+  { subjectId?: string; gradeId?: string; page?: number; limit?: number } | undefined
+>("questions/fetch", async (filters, { rejectWithValue }) => {
+  try {
     const params: Record<string, string | number> = {
       page: filters?.page || 1,
-      limit: filters?.limit || 20,
+      limit: filters?.limit || 100,
     };
 
-    if (filters?.subject) params.subject = filters.subject;
-    if (filters?.grade) params.grade = filters.grade;
+    // Backend qaysi parametr nomini kutishini tekshiring
+    // Ba'zi backend'lar subjectId/gradeId kutadi, ba'zilari subject/grade
+    if (filters?.subjectId) {
+      params.subjectId = filters.subjectId; // yoki params.subject
+    }
+    if (filters?.gradeId) {
+      params.gradeId = filters.gradeId; // yoki params.grade
+    }
 
     console.log("📤 Fetching questions with params:", params);
-
-    // ✅ API endpoint to'g'ri ishlashi uchun
+    
+    // Agar /subjects/with-test ishlamasa, /questions endpoint'ini sinab ko'ring
     const res = await api.get("/subjects/with-test", { params });
-    console.log("📥 Raw response from API:", res.data);
-
+    // yoki: const res = await api.get("/questions", { params });
+    
+    console.log("📥 API Response:", res.data);
+    
     const responseData = res.data?.data;
 
     if (!responseData || !Array.isArray(responseData.items)) {
-      console.warn("⚠️ API data is not an array:", responseData);
-      return { data: [], total: 0 };
+      console.warn("⚠️ API noto'g'ri ma'lumot qaytardi:", responseData);
+      return { data: [], total: 0, page: 1, limit: 10 };
     }
 
     const mapped = responseData.items.map((item: any) => ({
       id: item.id,
       question: item.question,
       options: item.options || [],
-      grade: item.grade
-        ? { id: item.grade.id, title: item.grade.title }
-        : undefined,
-      subject: item.grade?.subject
-        ? { id: item.grade.subject.id, title: item.grade.subject.title, grades: [] }
-        : undefined,
+      grade: {
+        id: item.grade?.id,
+        title: item.grade?.title,
+        subject: item.grade?.subject,
+      },
+      subject: {
+        id: item.grade?.subject?.id,
+        title: item.grade?.subject?.title,
+      },
     }));
 
-    console.log("✅ Mapped questions:", mapped);
+    console.log("✅ Mapped questions:", mapped.length);
 
     return {
       data: mapped,
-      total: responseData.total,
+      total: responseData.total || mapped.length,
+      page: responseData.page || 1,
+      limit: responseData.limit || 10,
     };
+  } catch (error: any) {
+    console.error("❌ fetchQuestions error:", error);
+    return rejectWithValue(error.response?.data || "Server error");
   }
-);
+});
 
-// 🔹 Yangi savol qo‘shish
 export const createQuestion = createAsyncThunk<
   Question,
   {
     question: string;
-    subjectId: string;
     gradeId: string;
-    options: { variant: string; is_correct: boolean }[];
   }
->("questions/create", async (payload) => {
-  const res = await api.post("/questions", payload);
-  return res.data.data as Question;
+>("questions/create", async (payload, { rejectWithValue }) => {
+  try {
+    // Backend faqat question va gradeId qabul qiladi (options alohida yaratiladi)
+    const res = await api.post("/questions", {
+      question: payload.question,
+      gradeId: payload.gradeId,
+    });
+    return res.data.data as Question;
+  } catch (error: any) {
+    console.error("❌ createQuestion error:", error.response?.data);
+    return rejectWithValue(error.response?.data || "Savol yaratishda xatolik!");
+  }
 });
 
-// 🔹 Savolni yangilash
 export const updateQuestion = createAsyncThunk<
   Question,
   {
     id: string;
     question: string;
-    subjectId: string;
     gradeId: string;
-    options: { id?: string; variant: string; is_correct: boolean }[];
   }
->("questions/update", async ({ id, ...payload }) => {
-  const res = await api.put(`/questions/${id}`, payload);
-  return res.data.data as Question;
+>("questions/update", async ({ id, ...payload }, { rejectWithValue }) => {
+  try {
+    const res = await api.put(`/questions/${id}`, {
+      question: payload.question,
+      gradeId: payload.gradeId,
+    });
+    return res.data.data as Question;
+  } catch (error: any) {
+    console.error("❌ updateQuestion error:", error.response?.data);
+    return rejectWithValue(error.response?.data || "Savol yangilashda xatolik!");
+  }
 });
 
-// 🔹 Savolni o‘chirish
 export const deleteQuestion = createAsyncThunk<string, string>(
   "questions/delete",
-  async (id) => {
-    await api.delete(`/questions/${id}`);
-    return id;
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`/questions/${id}`);
+      return id;
+    } catch (error: any) {
+      console.error("❌ deleteQuestion error:", error.response?.data);
+      return rejectWithValue(error.response?.data || "Savol o'chirishda xatolik!");
+    }
   }
 );
 
@@ -137,50 +176,33 @@ const questionsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // FETCH
       .addCase(fetchQuestions.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(
-        fetchQuestions.fulfilled,
-        (state, action: PayloadAction<{ data: Question[]; total: number }>) => {
-          state.loading = false;
-          state.items = action.payload.data;
-          state.total = action.payload.total;
-        }
-      )
+      .addCase(fetchQuestions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload.data;
+        state.total = action.payload.total;
+        state.page = action.payload.page;
+        state.limit = action.payload.limit;
+      })
       .addCase(fetchQuestions.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || "Savollarni yuklashda xatolik!";
+        state.error = (action.payload as string) || action.error.message || "Xatolik!";
       })
-
-      // CREATE
-      .addCase(
-        createQuestion.fulfilled,
-        (state, action: PayloadAction<Question>) => {
-          state.items.push(action.payload);
-          state.total += 1;
-        }
-      )
-
-      // UPDATE
-      .addCase(
-        updateQuestion.fulfilled,
-        (state, action: PayloadAction<Question>) => {
-          const idx = state.items.findIndex((q) => q.id === action.payload.id);
-          if (idx !== -1) state.items[idx] = action.payload;
-        }
-      )
-
-      // DELETE
-      .addCase(
-        deleteQuestion.fulfilled,
-        (state, action: PayloadAction<string>) => {
-          state.items = state.items.filter((q) => q.id !== action.payload);
-          state.total -= 1;
-        }
-      );
+      .addCase(createQuestion.fulfilled, (state, action) => {
+        state.items.push(action.payload);
+        state.total += 1;
+      })
+      .addCase(updateQuestion.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((q) => q.id === action.payload.id);
+        if (idx !== -1) state.items[idx] = action.payload;
+      })
+      .addCase(deleteQuestion.fulfilled, (state, action) => {
+        state.items = state.items.filter((q) => q.id !== action.payload);
+        state.total -= 1;
+      });
   },
 });
 

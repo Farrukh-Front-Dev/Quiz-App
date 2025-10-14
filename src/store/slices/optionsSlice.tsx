@@ -1,19 +1,13 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import api from "@/lib/api";
 
-// --- TYPES ---
 export interface Option {
   id: string;
   variant: string;
   is_correct: boolean;
-  question?: {
-    id: string;
-    question: string;
-  };
   question_id?: string;
 }
 
-// --- STATE ---
 interface OptionsState {
   items: Option[];
   loading: boolean;
@@ -26,125 +20,69 @@ const initialState: OptionsState = {
   error: null,
 };
 
-// --- THUNKS ---
-
-// 🔹 Barcha optionsni olish (ixtiyoriy questionId bilan)
-export const fetchOptions = createAsyncThunk<
-  Option[],
-  { questionId?: string } | void
->("options/fetchAll", async (params) => {
-  const res = await api.get("/options", { params });
-  return res.data.data as Option[];
-});
-
-// 🔹 Bitta optionni olish
-export const fetchOptionById = createAsyncThunk<Option, string>(
-  "options/fetchOne",
-  async (id) => {
-    const res = await api.get(`/options/${id}`);
-    return res.data.data as Option;
-  }
-);
-
-// 🔹 Yangi option yaratish
-// 🔹 Yangi option yaratish
 export const createOption = createAsyncThunk<
   Option,
-  { question_id: string; variant: string; is_correct: boolean }
+  { questionId: string; variant: string; is_correct: boolean }
 >("options/create", async (payload, { rejectWithValue }) => {
   try {
+    console.log("📤 Creating option:", payload);
     const res = await api.post("/options", {
-      questionId: payload.question_id, // ✅ backend `questionId` kutyapti
+      questionId: payload.questionId,
       variant: payload.variant,
       is_correct: payload.is_correct,
     });
+    console.log("✅ Option created:", res.data);
     return res.data.data as Option;
   } catch (error: any) {
-    console.error("❌ Option yaratishda xatolik:", error.response?.data || error.message);
+    console.error("❌ createOption error:", error.response?.data || error.message);
     return rejectWithValue(error.response?.data);
   }
 });
 
-
-// 🔹 Optionni yangilash
 export const updateOption = createAsyncThunk<
   Option,
   { id: string; variant: string; is_correct: boolean }
->("options/update", async ({ id, ...payload }) => {
-  const res = await api.put(`/options/${id}`, payload);
-  return res.data.data as Option;
+>("options/update", async ({ id, ...payload }, { rejectWithValue }) => {
+  try {
+    console.log("📤 Updating option:", { id, ...payload });
+    const res = await api.put(`/options/${id}`, payload);
+    console.log("✅ Option updated:", res.data);
+    return res.data.data as Option;
+  } catch (error: any) {
+    console.error("❌ updateOption error:", error.response?.data);
+    return rejectWithValue(error.response?.data);
+  }
 });
 
-// 🔹 Optionni o‘chirish
 export const deleteOption = createAsyncThunk<string, string>(
   "options/delete",
-  async (id) => {
-    await api.delete(`/options/${id}`);
-    return id;
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`/options/${id}`);
+      return id;
+    } catch (error: any) {
+      console.error("❌ deleteOption error:", error.response?.data);
+      return rejectWithValue(error.response?.data);
+    }
   }
 );
 
-// --- SLICE ---
 const optionsSlice = createSlice({
   name: "options",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // --- Fetch all ---
-      .addCase(fetchOptions.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+      .addCase(createOption.fulfilled, (state, action) => {
+        state.items.push(action.payload);
       })
-      .addCase(
-        fetchOptions.fulfilled,
-        (state, action: PayloadAction<Option[]>) => {
-          state.loading = false;
-          state.items = action.payload;
-        }
-      )
-      .addCase(fetchOptions.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || "Optionsni yuklashda xatolik!";
+      .addCase(updateOption.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((o) => o.id === action.payload.id);
+        if (idx !== -1) state.items[idx] = action.payload;
       })
-
-      // --- Fetch by id ---
-      .addCase(
-        fetchOptionById.fulfilled,
-        (state, action: PayloadAction<Option>) => {
-          const idx = state.items.findIndex((o) => o.id === action.payload.id);
-          if (idx === -1) {
-            state.items.push(action.payload);
-          } else {
-            state.items[idx] = action.payload;
-          }
-        }
-      )
-
-      // --- Create ---
-      .addCase(
-        createOption.fulfilled,
-        (state, action: PayloadAction<Option>) => {
-          state.items.push(action.payload);
-        }
-      )
-
-      // --- Update ---
-      .addCase(
-        updateOption.fulfilled,
-        (state, action: PayloadAction<Option>) => {
-          const idx = state.items.findIndex((o) => o.id === action.payload.id);
-          if (idx !== -1) state.items[idx] = action.payload;
-        }
-      )
-
-      // --- Delete ---
-      .addCase(
-        deleteOption.fulfilled,
-        (state, action: PayloadAction<string>) => {
-          state.items = state.items.filter((o) => o.id !== action.payload);
-        }
-      );
+      .addCase(deleteOption.fulfilled, (state, action) => {
+        state.items = state.items.filter((o) => o.id !== action.payload);
+      });
   },
 });
 

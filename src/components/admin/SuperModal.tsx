@@ -329,7 +329,7 @@ export default function SuperModal({
               block
               icon={<Plus size={14} />}
             >
-              Yangi daraja
+              Yangi   
             </Button>
           )
         )}

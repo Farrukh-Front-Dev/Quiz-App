@@ -40,23 +40,29 @@ export default function QuestionsDashboard() {
   const [selectedSubject, setSelectedSubject] = useState<string | undefined>();
   const [selectedGrade, setSelectedGrade] = useState<string | undefined>();
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
 
-  // 🔹 Load initial data
+  // 🔹 Subjects yuklash
   useEffect(() => {
     dispatch(loadSubjects());
-    dispatch(fetchQuestions({}));
   }, [dispatch]);
 
-  // 🔹 Filter trigger
+  // 🔹 Filter o'zgarganda savollarni qayta yuklash
   useEffect(() => {
-    dispatch(fetchQuestions({ subject: selectedSubject, grade: selectedGrade }));
+    console.log("🔄 Filtering with:", { selectedSubject, selectedGrade });
+    dispatch(
+      fetchQuestions({
+        subjectId: selectedSubject,
+        gradeId: selectedGrade,
+        page: 1,
+        limit: 100, // Barcha savollarni olish
+      })
+    );
     setCurrentPage(1);
   }, [dispatch, selectedSubject, selectedGrade]);
 
-  // 🔹 Dynamic pageSize
+  // 🔹 Responsive pageSize
   useEffect(() => {
     const updatePageSize = () => {
       const width = window.innerWidth;
@@ -71,13 +77,32 @@ export default function QuestionsDashboard() {
     return () => window.removeEventListener("resize", updatePageSize);
   }, []);
 
-  // 🔹 Paginate
+  // 🔹 Client-side filtering (agar backend filter ishlamasa)
+  const filteredQuestions = useMemo(() => {
+    let filtered = questions;
+
+    if (selectedSubject) {
+      filtered = filtered.filter(
+        (q) =>
+          q.subject?.id === selectedSubject ||
+          q.grade?.subject?.id === selectedSubject
+      );
+    }
+
+    if (selectedGrade) {
+      filtered = filtered.filter((q) => q.grade?.id === selectedGrade);
+    }
+
+    return filtered;
+  }, [questions, selectedSubject, selectedGrade]);
+
+  // 🔹 Client-side pagination
   const paginatedQuestions = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return questions.slice(start, start + pageSize);
-  }, [questions, pageSize, currentPage]);
+    return filteredQuestions.slice(start, start + pageSize);
+  }, [filteredQuestions, pageSize, currentPage]);
 
-  // 🔹 Handlers
+  // 🔹 CRUD Handlers
   const openEditModal = (q: Question) => {
     setEditingQuestion(q);
     setModalOpen(true);
@@ -88,32 +113,37 @@ export default function QuestionsDashboard() {
     setModalOpen(true);
   };
 
-  const handleSave = async (values: any) => {
+  const handleSave = async (values: {
+    question: string;
+    gradeId: string;
+  }): Promise<{ id: string } | void> => {
     try {
-      const options = Array.isArray(values.options) ? values.options : [];
-      const payload = {
-        question: values.question,
-        subjectId: values.subjectId,
-        gradeId: values.gradeId,
-        options: options.map((o: any) => ({
-          id: o.id,
-          variant: o.variant,
-          is_correct: !!o.is_correct,
-        })),
-      };
-
+      let result;
       if (editingQuestion) {
-        await dispatch(updateQuestion({ id: editingQuestion.id, ...payload })).unwrap();
+        result = await dispatch(
+          updateQuestion({ id: editingQuestion.id, ...values })
+        ).unwrap();
         message.success("Savol yangilandi ✅");
       } else {
-        await dispatch(createQuestion(payload)).unwrap();
-        message.success("Savol qo‘shildi ✅");
+        result = await dispatch(createQuestion(values)).unwrap();
+        message.success("Savol qo'shildi ✅");
       }
 
       setModalOpen(false);
-      dispatch(fetchQuestions({ subject: selectedSubject, grade: selectedGrade }));
+      
+      // Savollarni qayta yuklash
+      await dispatch(
+        fetchQuestions({
+          subjectId: selectedSubject,
+          gradeId: selectedGrade,
+          page: 1,
+          limit: 100,
+        })
+      );
+
+      return result;
     } catch (err) {
-      console.error(err);
+      console.error("❌ handleSave error:", err);
       message.error("Xatolik yuz berdi");
     }
   };
@@ -121,9 +151,19 @@ export default function QuestionsDashboard() {
   const handleDelete = async (id: string) => {
     try {
       await dispatch(deleteQuestion(id)).unwrap();
-      message.success("Savol o‘chirildi 🗑️");
+      message.success("Savol o'chirildi 🗑️");
+      
+      // Savollarni qayta yuklash
+      dispatch(
+        fetchQuestions({
+          subjectId: selectedSubject,
+          gradeId: selectedGrade,
+          page: 1,
+          limit: 100,
+        })
+      );
     } catch {
-      message.error("Savolni o‘chirishda xatolik yuz berdi");
+      message.error("Savolni o'chirishda xatolik yuz berdi");
     }
   };
 
@@ -136,12 +176,13 @@ export default function QuestionsDashboard() {
   });
 
   // 🔹 Loading state
-  if (loading || subjectsLoading)
+  if (loading && questions.length === 0) {
     return (
       <div className="flex justify-center items-center h-[70vh]">
         <Spin size="large" />
       </div>
     );
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -156,7 +197,9 @@ export default function QuestionsDashboard() {
             setSelectedSubject(val);
             setSelectedGrade(undefined);
           }}
+          allowClear
           style={{ width: 200 }}
+          loading={subjectsLoading}
           options={subjects.map((s) => ({ value: s.id, label: s.title }))}
         />
         <Select
@@ -164,14 +207,17 @@ export default function QuestionsDashboard() {
           value={selectedGrade}
           disabled={!selectedSubject}
           onChange={(val) => setSelectedGrade(val)}
+          allowClear
           style={{ width: 200 }}
           options={
             subjects
               .find((s) => s.id === selectedSubject)
-              ?.grades.map((g) => ({ value: g.id, label: g.title })) || []
+              ?.grades?.map((g) => ({ value: g.id, label: g.title })) || []
           }
         />
-        <Button type="primary" onClick={openAddModal}>➕ Savol qo‘shish</Button>
+        <Button type="primary" onClick={openAddModal}>
+          ➕ Savol qo'shish
+        </Button>
       </Space>
 
       {/* 🔹 Table */}
@@ -182,6 +228,7 @@ export default function QuestionsDashboard() {
           rowKey="id"
           pagination={false}
           bordered
+          loading={loading}
         />
       </Card>
 
@@ -194,6 +241,9 @@ export default function QuestionsDashboard() {
             pageSize={pageSize}
             onChange={(page) => setCurrentPage(page)}
             showSizeChanger={false}
+            showTotal={(total, range) => 
+              `${range[0]}-${range[1]} / ${total} savol`
+            }
           />
         </div>
       )}
@@ -201,7 +251,10 @@ export default function QuestionsDashboard() {
       {/* 🔹 Modal */}
       <QuestionFormModal
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => {
+          setModalOpen(false);
+          setEditingQuestion(null);
+        }}
         onSave={handleSave}
         editingQuestion={editingQuestion}
         subjects={subjects}

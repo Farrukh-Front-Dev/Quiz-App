@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useAppDispatch } from "@/store";
-import { createOption, updateOption } from "@/store/slices/optionsSlice";
+import { createOption, updateOption, deleteOption } from "@/store/slices/optionsSlice";
 import { Question, Subject } from "@/store/slices/questionsSlice";
 
 import {
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectValue,
 } from "@/components/ui/select";
 
 import OptionFields from "./OptionFields";
@@ -28,9 +29,8 @@ import OptionFields from "./OptionFields";
 interface Props {
   open: boolean;
   onCancel: () => void;
-  onSave: (values: {  
+  onSave: (values: {
     question: string;
-    subjectId: string;
     gradeId: string;
   }) => Promise<{ id: string } | void>;
   editingQuestion: Question | null;
@@ -40,9 +40,9 @@ interface Props {
 export default function QuestionFormModal({
   open,
   onCancel,
-  onSave,
   editingQuestion,
   subjects,
+  onSave,
 }: Props) {
   const dispatch = useAppDispatch();
   const { register, handleSubmit, reset, watch, setValue, control } = useForm<any>({
@@ -61,19 +61,25 @@ export default function QuestionFormModal({
     return subjects.find((s) => s.id === selectedSubjectId)?.grades || [];
   }, [subjects, selectedSubjectId]);
 
-  // 🧠 Edit rejimida formni to‘ldirish
+  // 🧠 Form to'ldirish (edit rejimida)
   useEffect(() => {
     if (editingQuestion) {
+      const subjectId = editingQuestion.subject?.id || editingQuestion.grade?.subject?.id || "";
       reset({
         question: editingQuestion.question,
-        subjectId: editingQuestion.subject?.id || "",
+        subjectId,
         gradeId: editingQuestion.grade?.id || "",
-        options:
-          editingQuestion.options?.map((o) => ({
-            id: o.id,
-            variant: o.variant,
-            is_correct: o.is_correct,
-          })) || [],
+        options: editingQuestion.options?.length
+          ? editingQuestion.options.map((o) => ({
+              id: o.id,
+              variant: o.variant,
+              is_correct: o.is_correct,
+            }))
+          : [
+              { id: `temp-${Date.now()}-1`, variant: "", is_correct: false },
+              { id: `temp-${Date.now()}-2`, variant: "", is_correct: false },
+              { id: `temp-${Date.now()}-3`, variant: "", is_correct: false },
+            ],
       });
     } else {
       reset({
@@ -81,58 +87,85 @@ export default function QuestionFormModal({
         subjectId: "",
         gradeId: "",
         options: [
-          { id: "temp-1", variant: "", is_correct: false },
-          { id: "temp-2", variant: "", is_correct: false },
-          { id: "temp-3", variant: "", is_correct: false },
+          { id: `temp-${Date.now()}-1`, variant: "", is_correct: false },
+          { id: `temp-${Date.now()}-2`, variant: "", is_correct: false },
+          { id: `temp-${Date.now()}-3`, variant: "", is_correct: false },
         ],
       });
     }
-  }, [editingQuestion, reset]);
+  }, [editingQuestion, reset, open]);
 
   // 🧾 Form submit
   const handleFormSubmit = async (values: any) => {
-    const res = await onSave({
-      question: values.question,
-      subjectId: values.subjectId,
-      gradeId: values.gradeId,
-    });
+    try {
+      // 1️⃣ Savolni yaratish/yangilash
+      const result = await onSave({
+        question: values.question,
+        gradeId: values.gradeId,
+      });
 
-    const questionId = editingQuestion?.id || res?.id;
-    if (!questionId) return;
-
-    for (const opt of values.options) {
-      if (!opt.variant.trim()) continue;
-
-      if (opt.id?.startsWith("temp")) {
-        // 🔹 Yangi variant → create
-        await dispatch(
-          createOption({
-            question_id: questionId,
-            variant: opt.variant,
-            is_correct: opt.is_correct,
-          })
-        );
-      } else {
-        // 🔹 Mavjud variant → update
-        await dispatch(
-          updateOption({
-            id: opt.id,
-            variant: opt.variant,
-            is_correct: opt.is_correct,
-          })
-        );
+      const questionId = editingQuestion?.id || result?.id;
+      if (!questionId) {
+        console.error("❌ Question ID topilmadi!");
+        return;
       }
-    }
 
-    onCancel();
+      // 2️⃣ Eski variantlarni o'chirish (faqat edit rejimida)
+      if (editingQuestion?.options) {
+        const oldOptionIds = editingQuestion.options
+          .map((o) => o.id)
+          .filter((id) => id && !id.startsWith("temp"));
+        
+        const newOptionIds = values.options
+          .map((o: any) => o.id)
+          .filter((id: string) => id && !id.startsWith("temp"));
+
+        const toDelete = oldOptionIds.filter((id) => !newOptionIds.includes(id));
+        
+        for (const id of toDelete) {
+          if (id) {
+            await dispatch(deleteOption(id)).unwrap();
+          }
+        }
+      }
+
+      // 3️⃣ Variantlarni yaratish/yangilash
+      for (const opt of values.options) {
+        if (!opt.variant.trim()) continue;
+
+        if (!opt.id || opt.id.startsWith("temp")) {
+          // Yangi variant yaratish
+          await dispatch(
+            createOption({
+              questionId,
+              variant: opt.variant,
+              is_correct: opt.is_correct,
+            })
+          ).unwrap();
+        } else {
+          // Mavjud variantni yangilash
+          await dispatch(
+            updateOption({
+              id: opt.id,
+              variant: opt.variant,
+              is_correct: opt.is_correct,
+            })
+          ).unwrap();
+        }
+      }
+
+      onCancel();
+    } catch (error) {
+      console.error("❌ handleFormSubmit error:", error);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onCancel}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {editingQuestion ? "Savolni tahrirlash" : "Yangi savol qo‘shish"}
+            {editingQuestion ? "Savolni tahrirlash" : "Yangi savol qo'shish"}
           </DialogTitle>
           <DialogDescription>
             Savol matni, fan, daraja va variantlarni kiriting.
@@ -141,59 +174,67 @@ export default function QuestionFormModal({
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           {/* Fan tanlash */}
-          <Select
-            value={selectedSubjectId}
-            onValueChange={(v) => {
-              setValue("subjectId", v);
-              setValue("gradeId", "");
-            }}
-          >
-            <SelectTrigger>
-              {subjects.find((s) => s.id === selectedSubjectId)?.title ||
-                "Fan tanlang"}
-            </SelectTrigger>
-            <SelectContent>
-              {subjects.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div>
+            <label className="text-sm font-medium mb-2 block">Fan</label>
+            <Select
+              value={selectedSubjectId}
+              onValueChange={(v) => {
+                setValue("subjectId", v);
+                setValue("gradeId", "");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Fan tanlang" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Grade tanlash */}
-          <Select
-            value={selectedGradeId}
-            onValueChange={(v) => setValue("gradeId", v)}
-            disabled={!selectedSubjectId}
-          >
-            <SelectTrigger>
-              {filteredGrades.find((g) => g.id === selectedGradeId)?.title ||
-                "Daraja tanlang"}
-            </SelectTrigger>
-            <SelectContent>
-              {filteredGrades.map((g) => (
-                <SelectItem key={g.id} value={g.id}>
-                  {g.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div>
+            <label className="text-sm font-medium mb-2 block">Daraja</label>
+            <Select
+              value={selectedGradeId}
+              onValueChange={(v) => setValue("gradeId", v)}
+              disabled={!selectedSubjectId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Daraja tanlang" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredGrades.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Savol matni */}
-          <Textarea
-            {...register("question", { required: true })}
-            placeholder="Savol matni"
-          />
+          <div>
+            <label className="text-sm font-medium mb-2 block">Savol matni</label>
+            <Textarea
+              {...register("question", { required: true })}
+              placeholder="Savolingizni kiriting..."
+              rows={3}
+            />
+          </div>
 
-          {/* Variantlar (alohida komponent) */}
+          {/* Variantlar */}
           <OptionFields control={control} setValue={setValue} watch={watch} />
 
           <DialogFooter className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={onCancel}>
               Bekor qilish
             </Button>
-            <Button type="submit" className="bg-blue-600 text-white">
+            <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700">
               Saqlash
             </Button>
           </DialogFooter>

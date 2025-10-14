@@ -16,7 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex-1 flex flex-col h-screen">
 
           <div className="sticky top-0 z-10">
-            <Navbar />
+            <Navbar />  `
           </div>
 
 
