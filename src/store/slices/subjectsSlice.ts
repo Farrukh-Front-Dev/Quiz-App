@@ -28,7 +28,49 @@ const initialState: SubjectsState = {
 
 // ================= API THUNK =================
 
-// 🔹 Barcha fanlarni yuklash (grades ham ichida keladi)
+// 🔹 Yangi API — fan va grade’larni testlar bilan olish
+export const loadSubjectsWithGrades = createAsyncThunk<
+  Subject[],
+  { page?: number; limit?: number }
+>("subjects/loadWithGrades", async ({ page = 1, limit = 10 }) => {
+  const res = await api.get(
+    `/subjects/with-test?page=${page}&limit=${limit}`
+  );
+
+  const items = res.data.data.items;
+
+  // 🔹 Ma’lumotni qayta tuzamiz: fanlar va ularning ichida unique grades bo‘lsin
+  const subjectsMap: Record<string, Subject> = {};
+
+  items.forEach((item: any) => {
+    const grade = item.grade;
+    const subject = grade.subject;
+
+    if (!subjectsMap[subject.id]) {
+      subjectsMap[subject.id] = {
+        id: subject.id,
+        title: subject.title,
+        grades: [],
+      };
+    }
+
+    // Agar grade hali qo‘shilmagan bo‘lsa, qo‘shamiz
+    if (!subjectsMap[subject.id].grades.some((g) => g.id === grade.id)) {
+      subjectsMap[subject.id].grades.push({
+        id: grade.id,
+        title: grade.title,
+        time: grade.time,
+        questionCount: grade.questionCount,
+        subject: subject,
+        is_active: grade.is_active ?? true,
+      });
+    }
+  });
+
+  return Object.values(subjectsMap);
+});
+
+// 🔹 Eski barcha fanlarni yuklash (grades ham ichida keladi)
 export const loadSubjects = createAsyncThunk<Subject[]>(
   "subjects/load",
   async () => {
@@ -81,7 +123,22 @@ const subjectsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // ===== SUBJECT CRUD =====
+      // ====== YANGI API ======
+      .addCase(loadSubjectsWithGrades.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(loadSubjectsWithGrades.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload;
+      })
+      .addCase(loadSubjectsWithGrades.rejected, (state, action) => {
+        state.loading = false;
+        state.error =
+          action.error.message ?? "Fanlar va darajalarni yuklashda xatolik!";
+      })
+
+      // ====== ESKI SUBJECT CRUD ======
       .addCase(loadSubjects.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -119,7 +176,7 @@ const subjectsSlice = createSlice({
         state.items = state.items.filter((s) => s.id !== action.payload);
       })
 
-      // ===== GRADE CRUD (subjects bilan bog‘langan) =====
+      // ====== GRADE CRUD (subjects bilan bog‘langan) ======
       .addCase(createGrade.fulfilled, (state, action) => {
         const grade = action.payload;
         const subject = state.items.find((s) => s.id === grade.subject.id);

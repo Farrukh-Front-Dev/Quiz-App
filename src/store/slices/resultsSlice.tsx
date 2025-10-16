@@ -1,20 +1,19 @@
+// src/store/slices/resultsSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import api from "@/lib/api";
 
+// ====== INTERFACES ======
 export interface Option {
   id: string;
   variant: string;
   is_correct: boolean;
 }
 
-
 export interface Question {
   id: string;
-  question: string;
+  question: string | { question: string };
   options: Option[];
-  selectedOptionId?: string | null;
 }
-
 
 
 export interface Result {
@@ -40,66 +39,122 @@ const initialState: ResultState = {
   error: null,
 };
 
-// --- FETCH RESULT BY SUBJECT AND GRADE ---
-export const fetchResultByParams = createAsyncThunk<
+// ====== THUNKS ======
+
+// 1️⃣ Testni boshlash (POST /results)
+export const createResult = createAsyncThunk<
   Result,
   { subjectId: string; gradeId: string }
->("result/fetchByParams", async ({ subjectId, gradeId }) => {
-  console.log("📡 Fetching result for:", subjectId, gradeId);
-
-  const res = await api.get(`/results`, {
-    params: { subjectId, gradeId },
-  });
-
-  const data = res.data?.data;
-
-  return {
-    id: data.id,
-    result: data.result,
-    time: data.time,
-    status: data.status,
-    subject: { id: data.subject.id, title: data.subject.title },
-    grade: { id: data.grade.id, title: data.grade.title },
-    user: {
-      id: data.user.id,
-      name: data.user.name,
-      surname: data.user.surname,
-    },
-    questions: data.questions.map((q: any) => ({
-      id: q.id,
-      question: q.question.question,
-      options: q.question.options.map((o: any) => ({
-        id: o.id,
-        variant: o.variant,
-        is_correct: o.is_correct,
-      })),
-      selectedOptionId: q.selectedOption?.id || null,
-    })),
-  };
+>("results/create", async ({ subjectId, gradeId }) => {
+  const res = await api.post("/results", { subjectId, gradeId });
+  return res.data.data as Result;
 });
 
-const resultSlice = createSlice({
-  name: "result",
+// 2️⃣ Result (savollar bilan) olish (GET /results/{id})
+export const fetchResultById = createAsyncThunk<Result, string>(
+  "results/fetchById",
+  async (id) => {
+    const res = await api.get(`/results/${id}`);
+    const data = res.data.data;
+
+    return {
+      id: data.id,
+      result: data.result,
+      time: data.time,
+      status: data.status,
+      subject: { id: data.subject.id, title: data.subject.title },
+      grade: { id: data.grade.id, title: data.grade.title },
+      user: {
+        id: data.user.id,
+        name: data.user.name,
+        surname: data.user.surname,
+        
+      },
+      
+      questions: data.questions.map((q: any) => ({
+  id: q.id,
+  question: typeof q.question === "string" 
+    ? q.question 
+    : q.question?.question || "No question text", // ✅ shu yerda fix
+  options: (q.question?.options || []).map((o: any) => ({
+    id: o.id,
+    variant: o.variant,
+    is_correct: o.is_correct,
+  })),
+  selectedOptionId: q.selectedOption?.id || null,
+})),
+
+    } as Result;
+  }
+);
+
+// 3️⃣ Testni yakunlash (POST /results/{id}/finish)
+export const finishResult = createAsyncThunk<
+  Result,
+  { id: string; answers: Record<string, string> }
+>("results/finish", async ({ id, answers }) => {
+  const res = await api.post(`/results/${id}/finish`, { answers });
+  return res.data.data as Result;
+});
+
+// ====== SLICE ======
+const resultsSlice = createSlice({
+  name: "results",
   initialState,
-  reducers: {},
+  reducers: {
+    clearResult(state) {
+      state.item = null;
+      state.error = null;
+      state.loading = false;
+    },
+  },
   extraReducers: (builder) => {
+    // --- CREATE RESULT ---
     builder
-      .addCase(fetchResultByParams.pending, (state) => {
+      .addCase(createResult.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(
-        fetchResultByParams.fulfilled,
-        (state, action: PayloadAction<Result>) => {
-          state.loading = false;
-          state.item = action.payload;
-        }
-      )
-      .addCase(fetchResultByParams.rejected, (state, action) => {
+      .addCase(createResult.fulfilled, (state, action: PayloadAction<Result>) => {
         state.loading = false;
-        state.error = action.error.message || "Natijani yuklashda xatolik!";
+        state.item = action.payload;
+      })
+      .addCase(createResult.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Testni boshlashda xatolik!";
+      });
+
+    // --- FETCH RESULT BY ID ---
+    builder
+      .addCase(fetchResultById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchResultById.fulfilled, (state, action: PayloadAction<Result>) => {
+        state.loading = false;
+        state.item = action.payload;
+      })
+      .addCase(fetchResultById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Savollarni yuklashda xatolik!";
+      });
+
+    // --- FINISH RESULT ---
+    builder
+      .addCase(finishResult.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(finishResult.fulfilled, (state, action: PayloadAction<Result>) => {
+        state.loading = false;
+        state.item = action.payload;
+      })
+      .addCase(finishResult.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Natijani yakunlashda xatolik!";
       });
   },
 });
 
-export default resultSlice.reducer;
+export const { clearResult } = resultsSlice.actions;
+export default resultsSlice.reducer;
