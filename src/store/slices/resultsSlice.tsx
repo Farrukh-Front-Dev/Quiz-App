@@ -16,6 +16,7 @@ export interface Question {
 }
 
 
+
 export interface Result {
   id: string;
   result: number;
