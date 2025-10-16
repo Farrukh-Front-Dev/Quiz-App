@@ -1,5 +1,7 @@
+// src/store/index.ts
 import { configureStore } from "@reduxjs/toolkit";
 import { useDispatch, useSelector, TypedUseSelectorHook } from "react-redux";
+
 import authReducer, { loadFromStorage } from "./slices/authSlice";
 import subjectsReducer from "./slices/subjectsSlice";
 import gradesReducer from "./slices/gradesSlice";
@@ -7,6 +9,7 @@ import usersReducer from "./slices/usersSlice";
 import questionsReducer from "./slices/questionsSlice";
 import optionsReducer from "./slices/optionsSlice";
 import resultsReducer from "./slices/resultsSlice";
+import userRouteReducer from "./slices/userRouteSlice"; // 🔹 import qilindi
 
 export const store = configureStore({
   reducer: {
@@ -16,10 +19,10 @@ export const store = configureStore({
     users: usersReducer,
     questions: questionsReducer,
     options: optionsReducer,
-    results: resultsReducer, // 🔹 qo‘shildi
+    results: resultsReducer,
+    userRoute: userRouteReducer, // 🔹 store ga qo‘shildi
   },
 });
-
 
 // LocalStorage dan userni yuklash
 store.dispatch(loadFromStorage());

@@ -7,12 +7,15 @@ export interface Option {
   is_correct: boolean;
 }
 
+
 export interface Question {
   id: string;
   question: string;
   options: Option[];
   selectedOptionId?: string | null;
 }
+
+
 
 export interface Result {
   id: string;
@@ -37,42 +40,43 @@ const initialState: ResultState = {
   error: null,
 };
 
-// --- FETCH ONE RESULT BY ID ---
-export const fetchResultById = createAsyncThunk<Result, string>(
-  "results/fetchById",
-  async (id) => {
-    console.log("📡 Fetching result by ID:", id);
+// --- FETCH RESULT BY SUBJECT AND GRADE ---
+export const fetchResultByParams = createAsyncThunk<
+  Result,
+  { subjectId: string; gradeId: string }
+>("result/fetchByParams", async ({ subjectId, gradeId }) => {
+  console.log("📡 Fetching result for:", subjectId, gradeId);
 
-    const res = await api.get(`/results/${id}`);
-    const data = res.data?.data;
+  const res = await api.get(`/results`, {
+    params: { subjectId, gradeId },
+  });
 
-    console.log("📥 Raw response from API:", data);
+  const data = res.data?.data;
 
-    return {
-      id: data.id,
-      result: data.result,
-      time: data.time,
-      status: data.status,
-      subject: { id: data.subject.id, title: data.subject.title },
-      grade: { id: data.grade.id, title: data.grade.title },
-      user: {
-        id: data.user.id,
-        name: data.user.name,
-        surname: data.user.surname,
-      },
-      questions: data.questions.map((q: any) => ({
-        id: q.id,
-        question: q.question.question,
-        options: q.question.options.map((o: any) => ({
-          id: o.id,
-          variant: o.variant,
-          is_correct: o.is_correct,
-        })),
-        selectedOptionId: q.selectedOption?.id || null,
+  return {
+    id: data.id,
+    result: data.result,
+    time: data.time,
+    status: data.status,
+    subject: { id: data.subject.id, title: data.subject.title },
+    grade: { id: data.grade.id, title: data.grade.title },
+    user: {
+      id: data.user.id,
+      name: data.user.name,
+      surname: data.user.surname,
+    },
+    questions: data.questions.map((q: any) => ({
+      id: q.id,
+      question: q.question.question,
+      options: q.question.options.map((o: any) => ({
+        id: o.id,
+        variant: o.variant,
+        is_correct: o.is_correct,
       })),
-    };
-  }
-);
+      selectedOptionId: q.selectedOption?.id || null,
+    })),
+  };
+});
 
 const resultSlice = createSlice({
   name: "result",
@@ -80,18 +84,18 @@ const resultSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchResultById.pending, (state) => {
+      .addCase(fetchResultByParams.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(
-        fetchResultById.fulfilled,
+        fetchResultByParams.fulfilled,
         (state, action: PayloadAction<Result>) => {
           state.loading = false;
           state.item = action.payload;
         }
       )
-      .addCase(fetchResultById.rejected, (state, action) => {
+      .addCase(fetchResultByParams.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Natijani yuklashda xatolik!";
       });

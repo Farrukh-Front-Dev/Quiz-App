@@ -7,6 +7,17 @@ export interface Option {
   variant: string;
   is_correct: boolean;
 }
+interface ResultQuestion {
+  id: string;
+  question: string;
+  options: {
+    id: string;
+    variant: string;
+    is_correct: boolean;
+  }[];
+  selectedOptionId?: string | null;
+}
+
 
 export interface Grade {
   id: string;

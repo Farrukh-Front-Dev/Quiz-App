@@ -1,13 +1,12 @@
 "use client";
-
 import { FC } from "react";
 import { Card, Radio, Typography } from "antd";
-import { Question } from "@/store/slices/questionsSlice";
+import { Question as ResultQuestion } from "@/store/slices/resultsSlice"; // result slice tipi
 
-const { Text, Paragraph } = Typography;
+const { Paragraph } = Typography;
 
 interface Props {
-  question: Question;
+  question: ResultQuestion; // result slice tipi bilan ishlatildi
   selectedAnswer?: string;
   onAnswer: (questionId: string, optionId: string) => void;
 }

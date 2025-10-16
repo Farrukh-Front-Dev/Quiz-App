@@ -1,33 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/store";
 import { loadSubjects } from "@/store/slices/subjectsSlice";
+import { fetchQuizQuestions, clearQuestions } from "@/store/slices/userRouteSlice";
 import { Button, Select, Space, Card, Spin } from "antd";
 import { useRouter } from "next/navigation";
 
 export default function SelectPage() {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const router = useRouter();
 
-  const { items: subjects, loading } = useSelector((state: RootState) => state.subjects);
+  const { items: subjects, loading: subjectsLoading } = useAppSelector(
+    state => state.subjects
+  );
 
   const [selectedSubject, setSelectedSubject] = useState<string>();
   const [selectedGrade, setSelectedGrade] = useState<string>();
 
   useEffect(() => {
     dispatch(loadSubjects());
+    dispatch(clearQuestions()); // eski savollarni tozalash
   }, [dispatch]);
 
   const grades = subjects.find(s => s.id === selectedSubject)?.grades || [];
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!selectedSubject || !selectedGrade) return;
+
+    // 🔹 API’dan savollarni fetch qilish
+    await dispatch(fetchQuizQuestions({ subject: selectedSubject, grade: selectedGrade }));
+
+    // 🔹 Quiz sahifasiga o‘tish
     router.push(`/user/quiz?subject=${selectedSubject}&grade=${selectedGrade}`);
   };
 
-  if (loading)
+  if (subjectsLoading)
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <Spin size="large" />
