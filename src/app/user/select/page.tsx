@@ -3,99 +3,95 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { loadSubjectsWithGrades } from "@/store/slices/subjectsSlice";
-import {
-  fetchQuizQuestions,
-  clearQuestions,
-} from "@/store/slices/userRouteSlice";
-import { Button, Select, Space, Card, Spin } from "antd";
+import { fetchQuizQuestions, clearQuestions } from "@/store/slices/userRouteSlice";
+import { Button, Select, Spin } from "antd";
 import { useRouter } from "next/navigation";
 
 export default function SelectPage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
 
-  // 🔹 Redux state’dan subjects va loading holatini olamiz
-  const { items: subjects, loading: subjectsLoading } = useAppSelector(
+  const { items: subjects, loading: subjectsLoading, total } = useAppSelector(
     (state) => state.subjects
   );
 
-  const [selectedSubject, setSelectedSubject] = useState<string>();
-  const [selectedGrade, setSelectedGrade] = useState<string>();
+  const [selectedGrades, setSelectedGrades] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   useEffect(() => {
-    // 🔹 Yangi API’dan fanlar va darajalarni yuklaymiz
-    dispatch(loadSubjectsWithGrades({ page: 1, limit: 10 }));
-    // 🔹 Oldingi savollarni tozalaymiz
-    dispatch(clearQuestions());
-  }, [dispatch]);
+    dispatch(loadSubjectsWithGrades({ page, limit }));
+    if (page === 1) dispatch(clearQuestions());
+  }, [dispatch, page]);
 
-  // 🔹 Tanlangan fanga qarab grades ro‘yxatini chiqaramiz
-  const grades = subjects.find((s) => s.id === selectedSubject)?.grades || [];
-
-  const handleStart = async () => {
-    if (!selectedSubject || !selectedGrade) return;
-
-    // 🔹 Savollarni yuklash
-    await dispatch(
-      fetchQuizQuestions({
-        subject: selectedSubject,
-        grade: selectedGrade,
-      })
-    );
-
-    // 🔹 Quiz sahifasiga o‘tish
-    router.push(`/user/quiz?subject=${selectedSubject}&grade=${selectedGrade}`);
+  const handleGradeSelect = (subjectId: string, gradeId: string) => {
+    setSelectedGrades((prev) => ({ ...prev, [subjectId]: gradeId }));
   };
 
-  if (subjectsLoading)
+  const handleStart = async (subjectId: string) => {
+    const selectedGrade = selectedGrades[subjectId];
+    if (!selectedGrade) return;
+
+    await dispatch(fetchQuizQuestions({ subject: subjectId, grade: selectedGrade }));
+    router.push(`/user/quiz?subject=${subjectId}&grade=${selectedGrade}`);
+  };
+
+  if (subjectsLoading && subjects.length === 0) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
         <Spin size="large" />
       </div>
     );
+  }
 
   return (
-    <div className="flex justify-center mt-12 px-4">
-      <Card className="w-full max-w-md p-6 shadow-lg rounded-lg bg-white">
-        <h2 className="text-2xl font-bold mb-6 text-center">Testni boshlash</h2>
-        <Space direction="vertical" size="large" className="w-full">
-          {/* 🔹 Fanni tanlash */}
-          <Select
-            placeholder="Fan tanlang"
-            value={selectedSubject}
-            onChange={(val) => {
-              setSelectedSubject(val);
-              setSelectedGrade(undefined);
-            }}
-            options={subjects.map((s) => ({ label: s.title, value: s.id }))}
-            className="w-full"
-          />
+    <div className="px-4 py-8 max-w-7xl mx-auto">
+      <h2 className="text-2xl font-bold text-center mb-8">Testni boshlash</h2>
 
-          {/* 🔹 Darajani tanlash */}
-          <Select
-            placeholder="Daraja tanlang"
-            value={selectedGrade}
-            onChange={(val) => setSelectedGrade(val)}
-            options={grades.map((g) => ({
-              label: `${g.title} (${g.questionCount} ta savol)`,
-              value: g.id,
-            }))}
-            className="w-full"
-            disabled={!selectedSubject}
-          />
-
-          {/* 🔹 Boshlash tugmasi */}
-          <Button
-            type="primary"
-            size="large"
-            onClick={handleStart}
-            disabled={!selectedSubject || !selectedGrade}
-            className="w-full"
+      {/* 🔹 Card grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {subjects.map((subject) => (
+          <div
+            key={subject.id}
+            className="rounded-xl border shadow-sm hover:shadow-lg p-4 transition bg-white flex flex-col justify-between"
           >
-            Boshlash
+            <h3 className="text-lg font-semibold mb-3">{subject.title}</h3>
+
+            <Select
+              placeholder="Darajani tanlang"
+              value={selectedGrades[subject.id]}
+              onChange={(val) => handleGradeSelect(subject.id, val)}
+              options={subject.grades.map((g) => ({
+                label: `${g.title} (${g.questionCount} ta savol)`,
+                value: g.id,
+              }))}
+              className="w-full mb-3"
+            />
+
+            <Button
+              type="primary"
+              block
+              onClick={() => handleStart(subject.id)}
+              disabled={!selectedGrades[subject.id]}
+            >
+              Boshlash
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      {/* 🔹 Yana yuklash */}
+      {subjects.length < total && (
+        <div className="flex justify-center mt-8">
+          <Button
+            onClick={() => setPage((p) => p + 1)}
+            loading={subjectsLoading}
+            size="large"
+          >
+            Yana yuklash
           </Button>
-        </Space>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

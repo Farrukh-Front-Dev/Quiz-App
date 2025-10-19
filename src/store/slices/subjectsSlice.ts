@@ -18,28 +18,32 @@ interface SubjectsState {
   items: Subject[];
   loading: boolean;
   error: string | null;
+  total: number;
+  page: number;
+  limit: number;
 }
 
 const initialState: SubjectsState = {
   items: [],
   loading: false,
   error: null,
+  total: 0,
+  page: 1,
+  limit: 10,
 };
 
 // ================= API THUNK =================
 
-// 🔹 Yangi API — fan va grade’larni testlar bilan olish
+// 🔹 Fan va grade’larni testlar bilan olish (pagination bilan)
 export const loadSubjectsWithGrades = createAsyncThunk<
-  Subject[],
-  { page?: number; limit?: number }
+  { items: Subject[]; total: number; page: number },
+  { page?: number; limit?: number },
+  { state: { subjects: SubjectsState } }
 >("subjects/loadWithGrades", async ({ page = 1, limit = 10 }) => {
-  const res = await api.get(
-    `/subjects/with-test?page=${page}&limit=${limit}`
-  );
+  const res = await api.get(`/subjects/with-test?page=${page}&limit=${limit}`);
+  const data = res.data.data;
 
-  const items = res.data.data.items;
-
-  // 🔹 Ma’lumotni qayta tuzamiz: fanlar va ularning ichida unique grades bo‘lsin
+  const items = data.items;
   const subjectsMap: Record<string, Subject> = {};
 
   items.forEach((item: any) => {
@@ -54,7 +58,6 @@ export const loadSubjectsWithGrades = createAsyncThunk<
       };
     }
 
-    // Agar grade hali qo‘shilmagan bo‘lsa, qo‘shamiz
     if (!subjectsMap[subject.id].grades.some((g) => g.id === grade.id)) {
       subjectsMap[subject.id].grades.push({
         id: grade.id,
@@ -67,7 +70,11 @@ export const loadSubjectsWithGrades = createAsyncThunk<
     }
   });
 
-  return Object.values(subjectsMap);
+  return {
+    items: Object.values(subjectsMap),
+    total: data.total,
+    page,
+  };
 });
 
 // 🔹 Eski barcha fanlarni yuklash (grades ham ichida keladi)
@@ -80,13 +87,31 @@ export const loadSubjects = createAsyncThunk<Subject[]>(
 );
 
 // 🔹 Qidiruv
-export const searchSubjectsByTitle = createAsyncThunk<Subject[], string>(
-  "subjects/search",
-  async (query) => {
+// 🔹 Qidiruv (fan nomi bo‘yicha)
+export const searchSubjectsByTitle = createAsyncThunk<
+  Subject[],
+  string,
+  { rejectValue: string }
+>("subjects/search", async (query, { rejectWithValue }) => {
+  try {
+    if (!query.trim()) return []; // Bo‘sh qidiruvni bekor qilish
+
     const res = await api.get(`/subjects/title/${encodeURIComponent(query)}`);
-    return res.data.data as Subject[];
+
+    // API formatga mos ma’lumot
+    if (res.data && Array.isArray(res.data.data)) {
+      return res.data.data as Subject[];
+    } else {
+      return rejectWithValue("Kutilmagan javob formati!");
+    }
+  } catch (error: any) {
+    console.error("❌ Qidiruvda xatolik:", error);
+    return rejectWithValue(
+      error.response?.data?.message || "Qidiruvda xatolik yuz berdi!"
+    );
   }
-);
+});
+
 
 // 🔹 Fan qo‘shish
 export const addSubject = createAsyncThunk<Subject, { title: string }>(
@@ -120,17 +145,35 @@ export const removeSubject = createAsyncThunk<string, string>(
 const subjectsSlice = createSlice({
   name: "subjects",
   initialState,
-  reducers: {},
+  reducers: {
+    clearSubjects(state) {
+      state.items = [];
+      state.page = 1;
+      state.total = 0;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      // ====== YANGI API ======
+      // ====== YANGI API (pagination bilan) ======
       .addCase(loadSubjectsWithGrades.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(loadSubjectsWithGrades.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload;
+
+        // Agar bu 1-sahifa bo‘lsa — yangidan yozamiz, aks holda ustiga qo‘shamiz
+        if (action.payload.page === 1) {
+          state.items = action.payload.items;
+        } else {
+          const newSubjects = action.payload.items.filter(
+            (s) => !state.items.some((old) => old.id === s.id)
+          );
+          state.items = [...state.items, ...newSubjects];
+        }
+
+        state.total = action.payload.total;
+        state.page = action.payload.page;
       })
       .addCase(loadSubjectsWithGrades.rejected, (state, action) => {
         state.loading = false;
@@ -138,33 +181,13 @@ const subjectsSlice = createSlice({
           action.error.message ?? "Fanlar va darajalarni yuklashda xatolik!";
       })
 
-      // ====== ESKI SUBJECT CRUD ======
-      .addCase(loadSubjects.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // ====== ESKI CRUD ======
       .addCase(loadSubjects.fulfilled, (state, action) => {
-        state.loading = false;
         state.items = action.payload;
-      })
-      .addCase(loadSubjects.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message ?? "Fanlarni yuklashda xatolik!";
-      })
-
-      .addCase(searchSubjectsByTitle.pending, (state) => {
-        state.loading = true;
-        state.error = null;
       })
       .addCase(searchSubjectsByTitle.fulfilled, (state, action) => {
-        state.loading = false;
         state.items = action.payload;
       })
-      .addCase(searchSubjectsByTitle.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message ?? "Qidiruvda xatolik!";
-      })
-
       .addCase(addSubject.fulfilled, (state, action) => {
         state.items.push(action.payload);
       })
@@ -180,9 +203,7 @@ const subjectsSlice = createSlice({
       .addCase(createGrade.fulfilled, (state, action) => {
         const grade = action.payload;
         const subject = state.items.find((s) => s.id === grade.subject.id);
-        if (subject) {
-          subject.grades.push(grade);
-        }
+        if (subject) subject.grades.push(grade);
       })
       .addCase(updateGrade.fulfilled, (state, action) => {
         const grade = action.payload;
@@ -200,4 +221,5 @@ const subjectsSlice = createSlice({
   },
 });
 
+export const { clearSubjects } = subjectsSlice.actions;
 export default subjectsSlice.reducer;

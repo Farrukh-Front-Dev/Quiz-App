@@ -26,7 +26,7 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<{ [questionId: string]: string }>({});
   const [startTime] = useState(Date.now());
 
-  // --- Load or Create Result ---
+  
   useEffect(() => {
     const loadResult = async () => {
       if (!subjectId || !gradeId) {
@@ -36,12 +36,12 @@ export default function QuizPage() {
       }
 
       try {
-        // 1️⃣ Avval result yaratamiz
+        
         const created = await dispatch(
           createResult({ subjectId, gradeId })
         ).unwrap();
 
-        // 2️⃣ So‘ng resultni yuklaymiz
+        
         await dispatch(fetchResultById(created.id));
       } catch (err) {
         console.error(err);
@@ -88,7 +88,7 @@ export default function QuizPage() {
     }
   };
 
-  // --- Loading / Error / No Questions ---
+  
   if (loading)
     return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
   if (error) return <p>{error}</p>;
