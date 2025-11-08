@@ -103,19 +103,19 @@ export function useQuestionColumns({
         </Tooltip>
       ),
     },
-    {
-      title: "D",
-      key: "optionD",
-      width: 150,
-      ellipsis: true,
-      render: (_, record) => (
-        <Tooltip title={record.options?.[3]?.variant}>
-          <span className={record.options?.[3]?.is_correct ? "font-bold text-green-600" : ""}>
-            {record.options?.[3]?.variant || "-"}
-          </span>
-        </Tooltip>
-      ),
-    },
+    // {
+    //   title: "D",
+    //   key: "optionD",
+    //   width: 150,
+    //   ellipsis: true,
+    //   render: (_, record) => (
+    //     <Tooltip title={record.options?.[3]?.variant}>
+    //       <span className={record.options?.[3]?.is_correct ? "font-bold text-green-600" : ""}>
+    //         {record.options?.[3]?.variant || "-"}
+    //       </span>
+    //     </Tooltip>
+    //   ),
+    // },
     {
       title: "To'g'ri javob",
       key: "answer",

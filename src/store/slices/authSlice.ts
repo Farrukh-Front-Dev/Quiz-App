@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import api from "@/lib/api"; // axios instance
+import api from "@/lib/api";
 
 export type Role = "user" | "admin" | "super-admin";
 
@@ -20,7 +20,7 @@ interface AuthState {
 const initialState: AuthState = {
   user: null,
   token: null,
-  loading: true, // sahifa birinchi marta ochilganda true bo'ladi
+  loading: true,
 };
 
 const authSlice = createSlice({
@@ -40,7 +40,7 @@ const authSlice = createSlice({
         localStorage.setItem("user", JSON.stringify(action.payload.user));
       }
 
-      // 🔑 API default headerga token qo'yamiz
+      
       api.defaults.headers.common.Authorization = `Bearer ${action.payload.token}`;
     },
     logout: (state) => {
