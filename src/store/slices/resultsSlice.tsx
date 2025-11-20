@@ -15,8 +15,6 @@ export interface Question {
   options: Option[];
 }
 
-
-
 export interface Result {
   id: string;
   result: number;
@@ -43,11 +41,12 @@ const initialState: ResultState = {
 // ====== THUNKS ======
 
 // 1️⃣ Testni boshlash (POST /results)
+// ❗ Faqat gradeId yuboriladi – subjectId olib tashlandi
 export const createResult = createAsyncThunk<
   Result,
-  { subjectId: string; gradeId: string }
->("results/create", async ({ subjectId, gradeId }) => {
-  const res = await api.post("/results", { subjectId, gradeId });
+  { gradeId: string }
+>("results/create", async ({ gradeId }) => {
+  const res = await api.post("/results", { gradeId });
   return res.data.data as Result;
 });
 
@@ -69,22 +68,21 @@ export const fetchResultById = createAsyncThunk<Result, string>(
         id: data.user.id,
         name: data.user.name,
         surname: data.user.surname,
-        
       },
-      
-      questions: data.questions.map((q: any) => ({
-  id: q.id,
-  question: typeof q.question === "string" 
-    ? q.question 
-    : q.question?.question || "No question text", // ✅ shu yerda fix
-  options: (q.question?.options || []).map((o: any) => ({
-    id: o.id,
-    variant: o.variant,
-    is_correct: o.is_correct,
-  })),
-  selectedOptionId: q.selectedOption?.id || null,
-})),
 
+      questions: data.questions.map((q: any) => ({
+        id: q.id,
+        question:
+          typeof q.question === "string"
+            ? q.question
+            : q.question?.question || "No question text",
+        options: (q.question?.options || []).map((o: any) => ({
+          id: o.id,
+          variant: o.variant,
+          is_correct: o.is_correct,
+        })),
+        selectedOptionId: q.selectedOption?.id || null,
+      })),
     } as Result;
   }
 );
@@ -110,7 +108,7 @@ const resultsSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // --- CREATE RESULT ---
+    // CREATE RESULT
     builder
       .addCase(createResult.pending, (state) => {
         state.loading = true;
@@ -125,7 +123,7 @@ const resultsSlice = createSlice({
         state.error = action.error.message ?? "Testni boshlashda xatolik!";
       });
 
-    // --- FETCH RESULT BY ID ---
+    // FETCH BY ID
     builder
       .addCase(fetchResultById.pending, (state) => {
         state.loading = true;
@@ -140,7 +138,7 @@ const resultsSlice = createSlice({
         state.error = action.error.message ?? "Savollarni yuklashda xatolik!";
       });
 
-    // --- FINISH RESULT ---
+    // FINISH RESULT
     builder
       .addCase(finishResult.pending, (state) => {
         state.loading = true;
