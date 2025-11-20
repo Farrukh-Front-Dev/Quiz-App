@@ -215,9 +215,8 @@ export default function QuestionsDashboard() {
               ?.grades?.map((g) => ({ value: g.id, label: g.title })) || []
           }
         />
-        <Button type="primary" onClick={openAddModal}>
-          ➕ Savol qo'shish
-        </Button>
+        <Button type="primary">Savol qo&apos;shish</Button>
+
       </Space>
 
       {/* 🔹 Table */}

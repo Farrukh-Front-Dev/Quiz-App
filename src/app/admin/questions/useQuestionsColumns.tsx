@@ -24,7 +24,7 @@ export function useQuestionColumns({
       key: "index",
       width: 60,
       fixed: "left",
-      render: (_: any, __: any, index: number) => (
+      render: (_text: string, _record: Question, index: number) => (
         <span className="font-semibold">
           {(currentPage - 1) * pageSize + index + 1}
         </span>
@@ -117,10 +117,10 @@ export function useQuestionColumns({
     //   ),
     // },
     {
-      title: "To'g'ri javob",
+      title: "To&apos;g&apos;ri javob",
       key: "answer",
       width: 120,
-      render: (_, record) => {
+      render: (_text: string, record: Question) => {
         const correct = record.options?.find((o) => o.is_correct);
         const index = record.options?.findIndex((o) => o.is_correct);
         return correct ? (
@@ -137,7 +137,7 @@ export function useQuestionColumns({
       key: "actions",
       width: 180,
       fixed: "right",
-      render: (_: any, record) => (
+      render: (_text: string, record: Question) => (
         <Space size="small">
           <Button
             size="small"
@@ -150,14 +150,14 @@ export function useQuestionColumns({
 
           <Popconfirm
             title="Savolni o'chirish"
-            description="Haqiqatan ham bu savolni o'chirmoqchimisiz?"
-            okText="Ha, o'chirish"
+            description="Haqiqatan ham bu savolni o&apos;chirmoqchimisiz?"
+            okText="Ha, o&apos;chirish"
             cancelText="Bekor qilish"
             okButtonProps={{ danger: true }}
             onConfirm={() => handleDelete(record.id)}
           >
             <Button size="small" danger icon={<Trash2 size={14} />}>
-              O'chirish
+              O&apos;chirish
             </Button>
           </Popconfirm>
         </Space>

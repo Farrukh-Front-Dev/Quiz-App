@@ -25,7 +25,7 @@ export default function UserRegister() {
     name: string;
     surname: string;
     phone: string;
-  }) {
+  }): Promise<void> {
     setError("");
     setLoading(true);
 
@@ -38,15 +38,16 @@ export default function UserRegister() {
 
       if (res.access_token && res.user) {
         dispatch(setCredentials({ user: res.user, token: res.access_token }));
-        message.success("Ro'yxatdan o'tish muvaffaqiyatli! ✅");
+        message.success("Ro&apos;yxatdan o&apos;tish muvaffaqiyatli! ✅");
         router.push("/user/select");
       } else {
-        setError("Ro'yxatdan o'tish muvaffaq bo'lmadi");
-        message.error("Ro'yxatdan o'tish muvaffaq bo'lmadi");
+        setError("Ro&apos;yxatdan o&apos;tish muvaffaq bo&apos;lmadi");
+        message.error("Ro&apos;yxatdan o&apos;tish muvaffaq bo&apos;lmadi");
       }
-    } catch (err: any) {
-      setError(err.message || "Server xatosi");
-      message.error(err.message || "Server xatosi");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Server xatosi";
+      setError(errorMessage);
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ export default function UserRegister() {
             <UserOutlined className="text-white text-3xl sm:text-4xl" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 tracking-tight">
-            Ro'yxatdan O'tish
+            Ro&apos;yxatdan O&apos;tish
           </h1>
           <p className="text-gray-300 text-sm sm:text-base">
             Yangi akkaunt yaratish va testlarni boshlash

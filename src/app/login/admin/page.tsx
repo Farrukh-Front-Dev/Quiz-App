@@ -39,7 +39,7 @@ export default function AdminLogin() {
     }
   }, [token, user, router]);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -51,7 +51,7 @@ export default function AdminLogin() {
         const decoded: DecodedToken = jwtDecode(res.access_token);
 
         if (!["admin", "super-admin"].includes(decoded.role)) {
-          setError("Admin paneliga kirishga huquqingiz yo'q.");
+          setError("Admin paneliga kirishga huquqingiz yo&apos;q.");
           setLoading(false);
           return;
         }

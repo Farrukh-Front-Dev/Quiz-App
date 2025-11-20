@@ -25,7 +25,6 @@ export default function QuizPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<{ [questionId: string]: string }>({});
   const [startTime] = useState(Date.now());
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const loadResult = async () => {
@@ -69,7 +68,6 @@ export default function QuizPage() {
 
   const handleSubmit = async () => {
     if (!result) return;
-    setSubmitting(true);
 
     try {
       await api.post(`/results/${result.id}/finish`, {
@@ -83,7 +81,6 @@ export default function QuizPage() {
     } catch (err) {
       console.error(err);
       message.error("Natijani yuborishda xatolik yuz berdi!");
-      setSubmitting(false);
     }
   };
 
@@ -202,7 +199,7 @@ export default function QuizPage() {
 
         {/* Info Footer */}
         <div className="mt-6 text-center text-gray-500 text-xs sm:text-sm px-2">
-          <p>Testni yakunlash uchun barcha savollarni javob bering va "Taqdim etish" tugmasini bosing</p>
+          <p>Testni yakunlash uchun barcha savollarni javob bering va &quot;Taqdim etish&quot; tugmasini bosing</p>
         </div>
       </div>
     </div>

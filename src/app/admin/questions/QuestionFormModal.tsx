@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Control, UseFormSetValue, UseFormWatch } from "react-hook-form";
 import { useAppDispatch } from "@/store";
 import { createOption, updateOption, deleteOption } from "@/store/slices/optionsSlice";
 import { Question, Subject } from "@/store/slices/questionsSlice";
@@ -26,6 +26,17 @@ import {
 
 import OptionFields from "./OptionFields";
 
+interface FormValues {
+  question: string;
+  subjectId: string;
+  gradeId: string;
+  options: Array<{
+    id: string;
+    variant: string;
+    is_correct: boolean;
+  }>;
+}
+
 interface Props {
   open: boolean;
   onCancel: () => void;
@@ -45,7 +56,7 @@ export default function QuestionFormModal({
   onSave,
 }: Props) {
   const dispatch = useAppDispatch();
-  const { register, handleSubmit, reset, watch, setValue, control } = useForm<any>({
+  const { register, handleSubmit, reset, watch, setValue, control } = useForm<FormValues>({
     defaultValues: {
       question: "",
       subjectId: "",
@@ -61,7 +72,7 @@ export default function QuestionFormModal({
     return subjects.find((s) => s.id === selectedSubjectId)?.grades || [];
   }, [subjects, selectedSubjectId]);
 
-  // 🧠 Form to'ldirish (edit rejimida)
+  // Form to'ldirish (edit rejimida)
   useEffect(() => {
     if (editingQuestion) {
       const subjectId = editingQuestion.subject?.id || editingQuestion.grade?.subject?.id || "";
@@ -95,8 +106,8 @@ export default function QuestionFormModal({
     }
   }, [editingQuestion, reset, open]);
 
-  // 🧾 Form submit
-  const handleFormSubmit = async (values: any) => {
+  // Form submit
+  const handleFormSubmit = async (values: FormValues): Promise<void> => {
     try {
       // 1️⃣ Savolni yaratish/yangilash
       const result = await onSave({
@@ -114,11 +125,11 @@ export default function QuestionFormModal({
       if (editingQuestion?.options) {
         const oldOptionIds = editingQuestion.options
           .map((o) => o.id)
-          .filter((id) => id && !id.startsWith("temp"));
+          .filter((id): id is string => !!id && !id.startsWith("temp"));
         
         const newOptionIds = values.options
-          .map((o: any) => o.id)
-          .filter((id: string) => id && !id.startsWith("temp"));
+          .map((o) => o.id)
+          .filter((id): id is string => !!id && !id.startsWith("temp"));
 
         const toDelete = oldOptionIds.filter((id) => !newOptionIds.includes(id));
         

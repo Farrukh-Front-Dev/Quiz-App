@@ -26,7 +26,7 @@ export default function UserLogin() {
     dispatch(loadFromStorage());
   }, [dispatch]);
 
-  const handleLogin = async (values: { phone: string }) => {
+  const handleLogin = async (values: { phone: string }): Promise<void> => {
     setLoading(true);
     try {
       const res = await loginUser({ phone: values.phone });
@@ -41,10 +41,11 @@ export default function UserLogin() {
         message.success("Muvaffaqiyatli login qilindi! ✅");
         router.push("/user/select");
       } else {
-        message.error("Login muvaffaq bo'lmadi ❌");
+        message.error("Login muvaffaq bo&apos;lmadi ❌");
       }
-    } catch (err: any) {
-      message.error(err.message || "Xatolik yuz berdi ❌");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Xatolik yuz berdi ❌";
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -162,7 +163,7 @@ export default function UserLogin() {
               bg-black/20 mb-3
             "
           >
-            Ro'yxatdan o'tish
+            Ro&apos;yxatdan o&apos;tish
           </Button>
 
           {/* Admin Login Button */}
